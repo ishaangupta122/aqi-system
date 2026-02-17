@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+venv/
+.env
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Data & Model files
+*.pkl
+*.joblib
+*.h5
+*.npz
+*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Misc
+*.swp
+*.bak
+*.tmp
+
+# VS Code
+.vscode/
+
+# Windows
+*.bat
+
+# Other
+ml_model/model.pkl
+ml_model/*.csv
+ml_model/*.joblib
+
+# Ignore secrets
+secrets.json
