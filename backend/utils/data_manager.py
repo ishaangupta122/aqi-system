@@ -19,8 +19,8 @@ class DataManager:
     def load_model(self) -> bool:
         """Load the trained model"""
         try:
-            model_path = 'ml_model/model.pkl'
-            features_path = 'ml_model/features.pkl'
+            model_path = 'model/model.pkl'
+            features_path = 'model/features.pkl'
             
             # Check if both files exist
             if not os.path.exists(model_path):
@@ -51,8 +51,8 @@ class DataManager:
         """Load the dataset"""
         try:
             # Try refined dataset first, fallback to original
-            refined_path = 'ml_model/refined_aqi_data.csv'
-            data_path = 'ml_model/city_day.csv'
+            refined_path = 'model/refined_aqi_data.csv'
+            data_path = 'model/city_day.csv'
             
             if os.path.exists(refined_path):
                 self.df = pd.read_csv(refined_path)

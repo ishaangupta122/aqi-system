@@ -38,9 +38,8 @@ Thumbs.db
 *.bat
 
 # Other
-ml_model/model.pkl
-ml_model/*.csv
-ml_model/*.joblib
+model/*.pkl
+model/*.joblib
 
 # Ignore secrets
 secrets.json
