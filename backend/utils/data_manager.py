@@ -50,13 +50,26 @@ class DataManager:
     def load_data(self) -> bool:
         """Load the dataset"""
         try:
-            # Try refined dataset first, fallback to original
+            # Use refined dataset to match model training data
+            # This ensures consistency between analytics range and prediction capabilities
             refined_path = 'model/refined_aqi_data.csv'
-            data_path = 'model/city_day.csv'
+            data_path = 'model/aqi_data.csv'
             
             if os.path.exists(refined_path):
                 self.df = pd.read_csv(refined_path)
                 print(f"✓ Refined data loaded successfully")
+                
+                # Convert season columns from boolean strings to integers
+                season_cols = ['season_Monsoon', 'season_PostMonsoon', 'season_Summer', 'season_Winter']
+                for col in season_cols:
+                    if col in self.df.columns:
+                        # Convert 'True'/'False' strings or boolean to 0/1 integers
+                        self.df[col] = self.df[col].map({True: 1, False: 0, 'True': 1, 'False': 0}).fillna(0).astype(int)
+                
+                # Ensure is_weekend is also integer
+                if 'is_weekend' in self.df.columns:
+                    self.df['is_weekend'] = self.df['is_weekend'].astype(int)
+                    
             elif os.path.exists(data_path):
                 self.df = pd.read_csv(data_path)
                 print(f"✓ Original data loaded successfully")

@@ -18,8 +18,8 @@ export default function Dataset() {
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState({
     preview: true,
-    columns: false,
-    statistics: false,
+    columns: true,
+    statistics: true,
   });
 
   // Helper functions to identify column types
@@ -150,7 +150,7 @@ export default function Dataset() {
           </div>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Total Missing:</span>
+              <span className="text-muted-foreground">Cells Missing:</span>
               <span className="text-xl font-bold text-yellow-500">
                 {datasetInfo?.missingValues?.total?.toLocaleString() || 0}
               </span>
@@ -162,9 +162,12 @@ export default function Dataset() {
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Status:</span>
-              <span className="inline-flex px-3 py-1 text-sm font-semibold bg-yellow-500/20 text-yellow-500 rounded-md">
-                {datasetInfo?.missingValues?.status || "Unknown"}
+              <span className="text-muted-foreground">Completeness:</span>
+              <span className="text-xl font-bold text-green-500">
+                {(100 - (datasetInfo?.missingValues?.percentage || 0)).toFixed(
+                  2,
+                )}
+                %
               </span>
             </div>
           </div>
@@ -352,6 +355,15 @@ export default function Dataset() {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       Type
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      Unit
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      Used
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      Importance
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       Non-Null
                     </th>
@@ -361,37 +373,81 @@ export default function Dataset() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {datasetInfo.columnDetails.map((col, idx) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-secondary/50/30 transition-colors">
-                      <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                        {idx + 1}
-                      </td>
-                      <td className="px-6 py-4 text-blue-400 font-semibold whitespace-nowrap">
-                        {col.name === "PM2_5" ? "PM2.5" : col.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-mono bg-orange-500/20 text-orange-500 rounded">
-                          {col.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right text-green-500 font-semibold whitespace-nowrap">
-                        {col.nonNull.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {col.null === 0 ? (
-                          <span className="text-muted-foreground">
-                            {col.null}
-                          </span>
-                        ) : (
-                          <span className="text-red-500 font-semibold">
-                            {col.null.toLocaleString()}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {datasetInfo.columnDetails
+                    .sort((a, b) => {
+                      // Prioritize used features first
+                      if (a.used && !b.used) return -1;
+                      if (!a.used && b.used) return 1;
+
+                      // Within used features, sort by importance
+                      if (a.used && b.used) {
+                        return b.importance - a.importance;
+                      }
+
+                      // Within unused features: AQI_Bucket first, then Date, then others
+                      if (!a.used && !b.used) {
+                        if (a.name === "AQI_Bucket") return -1;
+                        if (b.name === "AQI_Bucket") return 1;
+                        if (a.name === "Date") return -1;
+                        if (b.name === "Date") return 1;
+                      }
+
+                      return 0;
+                    })
+                    .map((col, idx) => {
+                      // Color code based on importance
+                      let importanceColor = "text-muted-foreground";
+                      if (col.importance >= 15) {
+                        importanceColor = "text-green-500 font-bold";
+                      } else if (col.importance >= 8) {
+                        importanceColor = "text-yellow-500 font-semibold";
+                      } else if (col.importance > 0) {
+                        importanceColor = "text-orange-500";
+                      }
+
+                      return (
+                        <tr
+                          key={idx}
+                          className="hover:bg-secondary/50/30 transition-colors">
+                          <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
+                            {idx + 1}
+                          </td>
+                          <td className="px-6 py-4 text-blue-400 font-semibold whitespace-nowrap">
+                            {col.name === "PM2_5" ? "PM2.5" : col.name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex px-2 py-1 text-xs font-mono bg-orange-500/20 text-orange-500 rounded">
+                              {col.type}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-left text-muted-foreground whitespace-nowrap">
+                            {col.unit || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block w-2 h-2 rounded-full ${col.used ? "bg-green-500" : "bg-red-500"}`}></span>
+                          </td>
+                          <td
+                            className={`px-6 py-4 text-right whitespace-nowrap ${importanceColor}`}>
+                            {col.importance > 0 ? `${col.importance}%` : "-"}
+                          </td>
+                          <td className="px-6 py-4 text-right text-green-500 font-semibold whitespace-nowrap">
+                            {col.nonNull.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-right whitespace-nowrap">
+                            {col.null === 0 ? (
+                              <span className="text-muted-foreground">
+                                {col.null}
+                              </span>
+                            ) : (
+                              <span className="text-red-500 font-semibold">
+                                {col.null.toLocaleString()}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             ) : (

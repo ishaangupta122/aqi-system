@@ -495,110 +495,112 @@ def get_model_info() -> dict:
     """Get comprehensive model information and metrics for Settings page"""
     if data_manager.df is None:
         raise HTTPException(status_code=500, detail="Data not loaded")
-    
+    if data_manager.model_info is None:
+        raise HTTPException(status_code=500, detail="Model not loaded")
+
+    import numpy as np
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
+
     df = data_manager.df
-    
-    # Calculate dataset statistics
+    model = data_manager.model_info['model']
+    features = data_manager.model_info['feature_names']
+
+    # Dataset stats
     total_records = len(df)
     cities_count = df['City'].nunique() if 'City' in df.columns else 0
-    
-    # Define refined pollutants (as per refined_model.py)
-    refined_pollutants = ["PM2.5", "NO", "NO2", "NOx", "CO", "SO2", "O3"]
-    
-    # Pollutant features with units and status (importance as percentage)
+
+    # Reproduce the same train/test split used during training
+    X = df[features]
+    y = df["AQI"]
+    _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    y_pred = model.predict(X_test)
+
+    # Real metrics
+    mae  = float(mean_absolute_error(y_test, y_pred))
+    mse  = float(mean_squared_error(y_test, y_pred))
+    rmse = float(np.sqrt(mse))
+    r2   = float(r2_score(y_test, y_pred))
+    mape = float(np.mean(np.abs((y_test.values - y_pred) / y_test.values)) * 100)
+
+    # Real feature importances
+    importances = model.feature_importances_
+    feature_importance_map = {f: round(float(imp) * 100, 2) for f, imp in zip(features, importances)}
+
     pollutant_features = [
-        # Used pollutants (refined model features)
-        {"name": "PM2.5", "unit": "μg/m³", "used": True, "importance": 32.0},
-        {"name": "NO", "unit": "μg/m³", "used": True, "importance": 9.0},
-        {"name": "NO2", "unit": "μg/m³", "used": True, "importance": 14.0},
-        {"name": "NOx", "unit": "μg/m³", "used": True, "importance": 8.0},
-        {"name": "CO", "unit": "mg/m³", "used": True, "importance": 7.0},
-        {"name": "SO2", "unit": "μg/m³", "used": True, "importance": 9.0},
-        {"name": "O3", "unit": "μg/m³", "used": True, "importance": 11.0},
-        # Dropped pollutants (not used in refined model)
-        {"name": "PM10", "unit": "μg/m³", "used": False, "importance": 0.0},
-        {"name": "NH3", "unit": "μg/m³", "used": False, "importance": 0.0},
+        {"name": "PM2.5", "unit": "μg/m³", "used": True,  "importance": feature_importance_map.get("PM2.5", 0.0)},
+        {"name": "NO",    "unit": "μg/m³", "used": True,  "importance": feature_importance_map.get("NO", 0.0)},
+        {"name": "NO2",   "unit": "μg/m³", "used": True,  "importance": feature_importance_map.get("NO2", 0.0)},
+        {"name": "NOx",   "unit": "μg/m³", "used": True,  "importance": feature_importance_map.get("NOx", 0.0)},
+        {"name": "CO",    "unit": "mg/m³", "used": True,  "importance": feature_importance_map.get("CO", 0.0)},
+        {"name": "SO2",   "unit": "μg/m³", "used": True,  "importance": feature_importance_map.get("SO2", 0.0)},
+        {"name": "O3",    "unit": "μg/m³", "used": True,  "importance": feature_importance_map.get("O3", 0.0)},
+        {"name": "PM10",    "unit": "μg/m³", "used": False, "importance": 0.0},
+        {"name": "NH3",     "unit": "μg/m³", "used": False, "importance": 0.0},
         {"name": "Benzene", "unit": "μg/m³", "used": False, "importance": 0.0},
         {"name": "Toluene", "unit": "μg/m³", "used": False, "importance": 0.0},
-        {"name": "Xylene", "unit": "μg/m³", "used": False, "importance": 0.0},
-        # Temporal features
-        {"name": "month", "unit": "-", "used": True, "importance": 5.0},
-        {"name": "is_weekend", "unit": "-", "used": True, "importance": 3.0},
-        # Season features (one-hot encoded)
-        {"name": "season_Winter", "unit": "-", "used": True, "importance": 2.0},
-        {"name": "season_Summer", "unit": "-", "used": True, "importance": 2.0},
-        {"name": "season_Monsoon", "unit": "-", "used": True, "importance": 1.0},
-        {"name": "season_PostMonsoon", "unit": "-", "used": True, "importance": 1.0}
+        {"name": "Xylene",  "unit": "μg/m³", "used": False, "importance": 0.0},
+        {"name": "month",           "unit": "-", "used": True, "importance": feature_importance_map.get("month", 0.0)},
+        {"name": "is_weekend",      "unit": "-", "used": True, "importance": feature_importance_map.get("is_weekend", 0.0)},
+        {"name": "season_Winter",   "unit": "-", "used": True, "importance": feature_importance_map.get("season_Winter", 0.0)},
+        {"name": "season_Summer",   "unit": "-", "used": True, "importance": feature_importance_map.get("season_Summer", 0.0)},
+        {"name": "season_Monsoon",  "unit": "-", "used": True, "importance": feature_importance_map.get("season_Monsoon", 0.0)},
+        {"name": "season_PostMonsoon", "unit": "-", "used": True, "importance": feature_importance_map.get("season_PostMonsoon", 0.0)},
     ]
-    
-    # Calculate performance metrics from test data
-    # Using approximate values based on refined_model.py training results
-    mae = 8.4
-    rmse = 11.2
-    r2 = 0.91
-    mape = 5.3
-    
-    # Model information
+
+    # All real test-set points for scatter plot (matches full matplotlib output)
+    scatter_data = [
+        {"actual": round(float(y_test.values[i]), 1), "predicted": round(float(y_pred[i]), 1)}
+        for i in range(len(y_test))
+    ]
+
+    # Residuals for first 30 points
+    residual_errors = [
+        {"sample": f"S{i+1}", "error": round(float(y_pred[i] - y_test.values[i]), 1)}
+        for i in range(min(30, len(y_test)))
+    ]
+
     model_info = {
         "modelName": "AQI Predictor",
         "algorithm": "Random Forest Regressor",
         "problemType": "Regression",
         "targetVariable": "AQI Index",
-        "version": "v1.0",
-        "lastTrained": "2026-02-01",
-        "trainingRecords": total_records,
-        "citiesUsed": cities_count
+        "trainingRecords": len(X) - len(X_test),
+        "testingRecords": len(X_test),
+        "citiesUsed": cities_count,
+        "columnsUsed": len(features) + 1,  # +1 for AQI target column
     }
-    
-    # Performance metrics
+
     performance_metrics = {
-        "rmse": round(rmse, 2),
-        "mae": round(mae, 2),
+        "rmse":    round(rmse, 2),
+        "mae":     round(mae, 2),
         "r2Score": round(r2, 4),
-        "mape": round(mape, 2)
+        "mse":     round(mse, 2),
+        "mape":    round(mape, 2),
     }
-    
-    # Random Forest model details
+
     model_details = {
-        "numberOfTrees": 500,
-        "maxDepth": 18,
-        "minSamplesLeaf": 2,
-        "featuresPerSplit": "sqrt",
-        "oobScore": 0.89,
-        "trainingTime": "42s"
+        "numberOfTrees": int(getattr(model, 'n_estimators', 500)),
+        "maxDepth": str(getattr(model, 'max_depth', 'None')),
+        "minSamplesLeaf": int(getattr(model, 'min_samples_leaf', 1)),
+        "featuresPerSplit": str(getattr(model, 'max_features', 'sqrt')),
+        "randomState": int(getattr(model, 'random_state', 42)),
+        "testRecords": len(X_test),
     }
-    
-    # Prediction behavior data (sample predictions vs actual)
+
     prediction_samples = {
-        "scatterData": [
-            {"actual": 120, "predicted": 115},
-            {"actual": 90, "predicted": 97},
-            {"actual": 160, "predicted": 150},
-            {"actual": 70, "predicted": 74},
-            {"actual": 140, "predicted": 132},
-            {"actual": 200, "predicted": 195},
-            {"actual": 85, "predicted": 88},
-            {"actual": 175, "predicted": 168}
-        ],
-        "residualErrors": [
-            {"sample": "Sample 1", "error": -5},
-            {"sample": "Sample 2", "error": 7},
-            {"sample": "Sample 3", "error": -10},
-            {"sample": "Sample 4", "error": 4},
-            {"sample": "Sample 5", "error": -8},
-            {"sample": "Sample 6", "error": -5},
-            {"sample": "Sample 7", "error": 3},
-            {"sample": "Sample 8", "error": -7}
-        ]
+        "scatterData": scatter_data,
+        "residualErrors": residual_errors,
     }
-    
+
     return {
         "modelInfo": model_info,
         "performanceMetrics": performance_metrics,
         "pollutantFeatures": pollutant_features,
         "modelDetails": model_details,
-        "predictionSamples": prediction_samples
+        "predictionSamples": prediction_samples,
     }
+
 
 
 def get_dataset_info() -> dict:
@@ -647,6 +649,29 @@ def get_dataset_info() -> dict:
         'datetime': datetime_count
     }
     
+    # Feature metadata (from refined model)
+    feature_metadata = {
+        "PM2.5": {"unit": "μg/m³", "used": True, "importance": 32.0},
+        "PM10": {"unit": "μg/m³", "used": False, "importance": 0.0},
+        "NO": {"unit": "μg/m³", "used": True, "importance": 9.0},
+        "NO2": {"unit": "μg/m³", "used": True, "importance": 14.0},
+        "NOx": {"unit": "μg/m³", "used": True, "importance": 8.0},
+        "NH3": {"unit": "μg/m³", "used": False, "importance": 0.0},
+        "CO": {"unit": "mg/m³", "used": True, "importance": 7.0},
+        "SO2": {"unit": "μg/m³", "used": True, "importance": 9.0},
+        "O3": {"unit": "μg/m³", "used": True, "importance": 11.0},
+        "Benzene": {"unit": "μg/m³", "used": False, "importance": 0.0},
+        "Toluene": {"unit": "μg/m³", "used": False, "importance": 0.0},
+        "Xylene": {"unit": "μg/m³", "used": False, "importance": 0.0},
+        "AQI": {"unit": "-", "used": True, "importance": 0.0},  # Target variable
+        "month": {"unit": "-", "used": True, "importance": 5.0},
+        "is_weekend": {"unit": "-", "used": True, "importance": 3.0},
+        "season_Winter": {"unit": "-", "used": True, "importance": 2.0},
+        "season_Summer": {"unit": "-", "used": True, "importance": 2.0},
+        "season_Monsoon": {"unit": "-", "used": True, "importance": 1.0},
+        "season_PostMonsoon": {"unit": "-", "used": True, "importance": 1.0},
+    }
+    
     # Column details
     column_details = []
     for col in df.columns:
@@ -654,20 +679,21 @@ def get_dataset_info() -> dict:
         null_count = int(len(df) - non_null)
         col_type = str(df[col].dtype)
         
+        # Get feature metadata if available
+        metadata = feature_metadata.get(col, {"unit": "-", "used": False, "importance": 0.0})
+        
         column_details.append({
             'name': col,
             'type': col_type,
             'nonNull': non_null,
-            'null': null_count
+            'null': null_count,
+            'unit': metadata['unit'],
+            'used': metadata['used'],
+            'importance': metadata['importance']
         })
     
     # Statistical summary for numeric columns (refined model pollutants)
-    # Handle both PM2.5 and PM2_5 column names
-    pollutant_cols = ['PM2_5', 'NO', 'NO2', 'NOx', 'CO', 'SO2', 'O3']
-    
-    # Check if PM2.5 exists instead of PM2_5
-    if 'PM2.5' in df.columns and 'PM2_5' not in df.columns:
-        pollutant_cols[0] = 'PM2.5'
+    pollutant_cols = ['PM2.5', 'NO', 'NO2', 'NOx', 'CO', 'SO2', 'O3']
     
     statistics = []
     
@@ -675,8 +701,8 @@ def get_dataset_info() -> dict:
         if col in df.columns:
             col_data = df[col].dropna()
             if len(col_data) > 0:
-                # Use PM2_5 for display if that's the column name
-                display_name = col if col != 'PM2_5' else 'PM2_5'
+                # For display, use PM2_5 (underscore) for consistency with frontend
+                display_name = 'PM2_5' if col == 'PM2.5' else col
                 stats = {
                     'column': display_name,
                     'count': int(col_data.count()),
@@ -757,11 +783,12 @@ def get_dataset_info() -> dict:
     return result
 
 
-def get_city_comparison(category: Optional[str] = None, limit: int = 20) -> dict:
-    """Get city comparison data with optional AQI category filter
+def get_city_comparison(year: Optional[int] = None, limit: int = 20) -> dict:
+    """Get city comparison data with optional year filter
     
     Args:
-        category: Optional AQI category filter ('Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe')
+        year: Optional year filter. If None, returns data for all years.
+              If provided, returns data for that specific year.
         limit: Maximum number of cities to return
     
     Returns:
@@ -770,10 +797,18 @@ def get_city_comparison(category: Optional[str] = None, limit: int = 20) -> dict
     if data_manager.df is None:
         raise HTTPException(status_code=500, detail="Data not loaded")
     
-    df_clean = data_manager.df.dropna(subset=['AQI', 'City']).copy()
+    df_clean = data_manager.df.dropna(subset=['AQI', 'City', 'Date']).copy()
     
     if len(df_clean) == 0:
         raise HTTPException(status_code=404, detail="No data available")
+    
+    # Filter by year if provided
+    if year is not None:
+        df_clean['Year'] = df_clean['Date'].dt.year
+        df_clean = df_clean[df_clean['Year'] == year]
+        
+        if len(df_clean) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for year {year}")
     
     # Calculate average AQI per city
     city_avg_aqi = df_clean.groupby('City')['AQI'].mean().reset_index()
@@ -784,44 +819,31 @@ def get_city_comparison(category: Optional[str] = None, limit: int = 20) -> dict
         lambda aqi: get_aqi_category(aqi)[0]
     )
     
-    # Filter by category if provided
-    if category and category != 'All':
-        city_avg_aqi = city_avg_aqi[city_avg_aqi['category'] == category]
-        
-        if len(city_avg_aqi) == 0:
-            return {
-                'cities': [],
-                'avg_aqi': [],
-                'categories': [],
-                'count': 0,
-                'filter': category,
-                'available_categories': ['All', 'Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
-            }
-    
     # Sort by average AQI (descending) and limit
     city_avg_aqi = city_avg_aqi.sort_values('avg_aqi', ascending=False).head(limit)
     
-    # Get available categories
-    all_categories = df_clean.groupby('City')['AQI'].mean().apply(
-        lambda aqi: get_aqi_category(aqi)[0]
-    ).unique().tolist()
-    available_categories = ['All'] + sorted(all_categories, key=lambda x: 
-        ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe'].index(x) 
-        if x in ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe'] else 999
-    )
+    # Get available years for filter dropdown
+    df_with_years = data_manager.df.dropna(subset=['Date']).copy()
+    df_with_years['Year'] = df_with_years['Date'].dt.year
+    available_years = sorted(df_with_years['Year'].unique().tolist())
     
     return {
         'cities': city_avg_aqi['city'].tolist(),
         'avg_aqi': [float(aqi) for aqi in city_avg_aqi['avg_aqi'].tolist()],
         'categories': city_avg_aqi['category'].tolist(),
         'count': len(city_avg_aqi),
-        'filter': category if category else 'All',
-        'available_categories': available_categories
+        'filter': 'all_time' if year is None else 'yearly',
+        'year': year,
+        'available_years': available_years
     }
 
 
-def get_seasonal_data() -> dict:
+def get_seasonal_data(year: Optional[int] = None) -> dict:
     """Get seasonal AQI data grouped by months and seasons
+    
+    Args:
+        year: Optional year filter. If None, returns data for all years.
+              If provided, returns data for that specific year.
     
     Returns:
         dict: Monthly and seasonal AQI averages with categories
@@ -834,27 +856,52 @@ def get_seasonal_data() -> dict:
     if len(df_clean) == 0:
         raise HTTPException(status_code=404, detail="No data available")
     
+    # Extract year if filtering
+    if year is not None:
+        df_clean['Year'] = df_clean['Date'].dt.year
+        df_clean = df_clean[df_clean['Year'] == year]
+        
+        if len(df_clean) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for year {year}")
+    
     # Extract month from dates
     df_clean['Month'] = df_clean['Date'].dt.month
     
     # Calculate monthly average AQI
     monthly_avg = df_clean.groupby('Month')['AQI'].mean().sort_index()
     
-    # Create full year data (all 12 months)
+    # Create month data
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    monthly_values = []
-    monthly_categories = []
     
-    for month_num in range(1, 13):
-        if month_num in monthly_avg.index:
-            aqi = float(monthly_avg[month_num])
-            monthly_values.append(aqi)
-            category, _, _, _ = get_aqi_category(aqi)
-            monthly_categories.append(category)
-        else:
-            monthly_values.append(None)
-            monthly_categories.append(None)
+    if year is None:
+        # All time: Include all 12 months (with None for missing months)
+        monthly_labels = month_names
+        monthly_values = []
+        monthly_categories = []
+        
+        for month_num in range(1, 13):
+            if month_num in monthly_avg.index:
+                aqi = float(monthly_avg[month_num])
+                monthly_values.append(aqi)
+                category, _, _, _ = get_aqi_category(aqi)
+                monthly_categories.append(category)
+            else:
+                monthly_values.append(None)
+                monthly_categories.append(None)
+    else:
+        # Specific year: Only include months with data
+        monthly_labels = []
+        monthly_values = []
+        monthly_categories = []
+        
+        for month_num in range(1, 13):
+            if month_num in monthly_avg.index:
+                monthly_labels.append(month_names[month_num - 1])
+                aqi = float(monthly_avg[month_num])
+                monthly_values.append(aqi)
+                category, _, _, _ = get_aqi_category(aqi)
+                monthly_categories.append(category)
     
     # Calculate seasonal average AQI (Indian seasons) using monthly averages
     # Winter: Dec, Jan, Feb (12, 1, 2)
@@ -882,7 +929,8 @@ def get_seasonal_data() -> dict:
                 'category': category,
                 'months_with_data': len(season_month_values)
             })
-        else:
+        elif year is None:
+            # Only include empty seasons when showing all time
             seasonal_data.append({
                 'season': season_name,
                 'avg_aqi': 0,
@@ -890,13 +938,21 @@ def get_seasonal_data() -> dict:
                 'months_with_data': 0
             })
     
+    # Get available years for filter dropdown
+    df_with_years = data_manager.df.dropna(subset=['Date']).copy()
+    df_with_years['Year'] = df_with_years['Date'].dt.year
+    available_years = sorted(df_with_years['Year'].unique().tolist())
+    
     return {
         'monthly': {
-            'labels': month_names,
+            'labels': monthly_labels,
             'values': monthly_values,
             'categories': monthly_categories
         },
-        'seasonal': seasonal_data
+        'seasonal': seasonal_data,
+        'filter': 'all_time' if year is None else 'yearly',
+        'year': year,
+        'available_years': available_years
     }
 
 
@@ -1023,3 +1079,120 @@ def get_aqi_frequency(year: Optional[int] = None, bin_size: int = 50) -> dict:
         'total_records': len(aqi_values),
         'available_years': available_years
     }
+
+
+def get_overall_aggregated_data(filter_type: str = 'all_time', year: Optional[int] = None, season: Optional[str] = None) -> dict:
+    """Get aggregated data across all cities for problem analysis
+    
+    Args:
+        filter_type: 'all_time', 'year', 'season'
+        year: Required if filter_type is 'year'
+        season: Required if filter_type is 'season' ('winter', 'summer', 'monsoon', 'post_monsoon')
+    
+    Returns:
+        dict: Aggregated pollutant data across all cities
+    """
+    if data_manager.df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    # Get all data
+    all_data = data_manager.df.copy()
+    
+    all_data = all_data.dropna(subset=['AQI', 'Date']).copy()
+    
+    if len(all_data) == 0:
+        raise HTTPException(status_code=404, detail="No valid data available")
+    
+    pollutant_cols = ['PM2.5', 'NO', 'NO2', 'NOx', 'CO', 'SO2', 'O3']
+    
+    if filter_type == 'all_time':
+        # Calculate average across all data
+        result = {
+            'pm25': round(float(all_data['PM2.5'].mean()), 2) if 'PM2.5' in all_data.columns else None,
+            'no': round(float(all_data['NO'].mean()), 2) if 'NO' in all_data.columns else None,
+            'no2': round(float(all_data['NO2'].mean()), 2) if 'NO2' in all_data.columns else None,
+            'nox': round(float(all_data['NOx'].mean()), 2) if 'NOx' in all_data.columns else None,
+            'co': round(float(all_data['CO'].mean()), 2) if 'CO' in all_data.columns else None,
+            'so2': round(float(all_data['SO2'].mean()), 2) if 'SO2' in all_data.columns else None,
+            'o3': round(float(all_data['O3'].mean()), 2) if 'O3' in all_data.columns else None,
+            'date_range': {
+                'start': all_data['Date'].min().isoformat(),
+                'end': all_data['Date'].max().isoformat()
+            },
+            'records': len(all_data),
+            'filter': 'all_time'
+        }
+    
+    elif filter_type == 'year':
+        if year is None:
+            raise HTTPException(status_code=400, detail="Year parameter required for 'year' filter")
+        
+        all_data['Year'] = all_data['Date'].dt.year
+        year_data = all_data[all_data['Year'] == year]
+        
+        if len(year_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for year {year}")
+        
+        result = {
+            'pm25': round(float(year_data['PM2.5'].mean()), 2) if 'PM2.5' in year_data.columns else None,
+            'no': round(float(year_data['NO'].mean()), 2) if 'NO' in year_data.columns else None,
+            'no2': round(float(year_data['NO2'].mean()), 2) if 'NO2' in year_data.columns else None,
+            'nox': round(float(year_data['NOx'].mean()), 2) if 'NOx' in year_data.columns else None,
+            'co': round(float(year_data['CO'].mean()), 2) if 'CO' in year_data.columns else None,
+            'so2': round(float(year_data['SO2'].mean()), 2) if 'SO2' in year_data.columns else None,
+            'o3': round(float(year_data['O3'].mean()), 2) if 'O3' in year_data.columns else None,
+            'year': year,
+            'records': len(year_data),
+            'filter': 'year'
+        }
+    
+    elif filter_type == 'season':
+        if season is None:
+            raise HTTPException(status_code=400, detail="Season parameter required for 'season' filter")
+        
+        season = season.lower()
+        season_map = {
+            'winter': [12, 1, 2],
+            'summer': [3, 4, 5],
+            'monsoon': [6, 7, 8, 9],
+            'post_monsoon': [10, 11]
+        }
+        
+        if season not in season_map:
+            raise HTTPException(status_code=400, detail=f"Invalid season: {season}. Must be one of: winter, summer, monsoon, post_monsoon")
+        
+        all_data['Month'] = all_data['Date'].dt.month
+        season_data = all_data[all_data['Month'].isin(season_map[season])]
+        
+        if len(season_data) == 0:
+            raise HTTPException(status_code=404, detail=f"No data available for {season} season")
+        
+        season_names = {
+            'winter': 'Winter',
+            'summer': 'Summer',
+            'monsoon': 'Monsoon',
+            'post_monsoon': 'Post-Monsoon'
+        }
+        
+        result = {
+            'pm25': round(float(season_data['PM2.5'].mean()), 2) if 'PM2.5' in season_data.columns else None,
+            'no': round(float(season_data['NO'].mean()), 2) if 'NO' in season_data.columns else None,
+            'no2': round(float(season_data['NO2'].mean()), 2) if 'NO2' in season_data.columns else None,
+            'nox': round(float(season_data['NOx'].mean()), 2) if 'NOx' in season_data.columns else None,
+            'co': round(float(season_data['CO'].mean()), 2) if 'CO' in season_data.columns else None,
+            'so2': round(float(season_data['SO2'].mean()), 2) if 'SO2' in season_data.columns else None,
+            'o3': round(float(season_data['O3'].mean()), 2) if 'O3' in season_data.columns else None,
+            'season': season_names[season],
+            'records': len(season_data),
+            'filter': 'season'
+        }
+    
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid filter_type: {filter_type}")
+    
+    # Get available years for filter dropdown
+    all_data['Year'] = all_data['Date'].dt.year
+    available_years = sorted(all_data['Year'].unique().tolist())
+    result['available_years'] = available_years
+    
+    return result

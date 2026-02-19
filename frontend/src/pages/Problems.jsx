@@ -8,160 +8,49 @@ import {
   MapPin,
   TrendingDown,
   Clock,
-  ChevronDown,
   Check,
   Lightbulb,
   HeartPulse,
   BuildingIcon,
+  LucideDatabase,
 } from "lucide-react";
 import Header from "../components/Header";
 import { pollutantInfo } from "../data";
 
 export default function Problems() {
-  const [cities, setCities] = useState([]);
-  const [selectedCity, setSelectedCity] = useState("");
-  const [dataSource, setDataSource] = useState("city");
   const [analysisResult, setAnalysisResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedPollutant, setSelectedPollutant] = useState(null);
-
-  // Single filter state
-  const [timeFilter, setTimeFilter] = useState("latest");
-  const [availableYears, setAvailableYears] = useState([]);
 
   // Helper function to format pollutant names
   const formatPollutantName = (name) => {
     return name.replace(/_/g, ".");
   };
 
-  useEffect(() => {
-    loadCities();
-  }, []);
-
-  useEffect(() => {
-    // Load available years when city is selected
-    if (selectedCity && dataSource === "city") {
-      loadAvailableYears();
-    }
-  }, [selectedCity, dataSource]);
-
-  const loadCities = async () => {
-    try {
-      const response = await api.getCities();
-      setCities(response.data.cities);
-      if (response.data.cities.length > 0) {
-        setSelectedCity(response.data.cities[0]);
-      }
-    } catch (error) {
-      toast.error("Failed to load cities");
-    }
-  };
-
-  const loadAvailableYears = async () => {
-    if (!selectedCity) return;
-
-    try {
-      // Fetch with latest to get available_years list
-      const response = await api.getCityAggregatedData(selectedCity, "latest");
-      if (response.data.available_years) {
-        setAvailableYears(response.data.available_years);
-      }
-    } catch (error) {
-      console.error("Failed to load available years:", error);
-    }
-  };
-
   const handleAnalyze = async () => {
-    if (!selectedCity && dataSource === "city") {
-      toast.error("Please select a city");
-      return;
-    }
-
     setLoading(true);
     try {
-      let pollutantData;
+      // Get from last prediction
+      const historyResponse = await api.getHistory(1);
+      const lastPrediction = historyResponse.data.predictions[0];
 
-      if (dataSource === "city") {
-        // Parse timeFilter to determine filter_type and parameters
-        let filterType = "latest";
-        let year = null;
-        let month = null;
-        let season = null;
-
-        if (timeFilter === "latest") {
-          filterType = "latest";
-        } else if (timeFilter === "all_time") {
-          filterType = "all_time";
-        } else if (timeFilter.startsWith("year_")) {
-          filterType = "year";
-          year = parseInt(timeFilter.replace("year_", ""));
-        } else if (timeFilter.startsWith("season_")) {
-          filterType = "season";
-          season = timeFilter.replace("season_", "");
-        }
-
-        // Fetch aggregated data from city with filtering
-        const aggregatedResponse = await api.getCityAggregatedData(
-          selectedCity,
-          filterType,
-          year,
-          month,
-          season,
-        );
-
-        const data = aggregatedResponse.data;
-
-        // Store available years for filter dropdown
-        if (data.available_years) {
-          setAvailableYears(data.available_years);
-        }
-
-        pollutantData = {
-          PM2_5: data.pm25,
-          NO: data.no || 0,
-          NO2: data.no2,
-          NOx: data.nox || 0,
-          CO: data.co,
-          SO2: data.so2,
-          O3: data.o3,
-          date:
-            data.date ||
-            (data.date_range
-              ? `${data.date_range.start} to ${data.date_range.end}`
-              : "N/A"),
-          city: selectedCity,
-          filter_info: {
-            type: filterType,
-            year: data.year,
-            month: data.month,
-            month_name: data.month_name,
-            season: data.season,
-            records: data.records,
-          },
-        };
-      } else {
-        // Get from last prediction
-        const historyResponse = await api.getHistory(1);
-        const lastPrediction = historyResponse.data.predictions[0];
-
-        if (!lastPrediction) {
-          toast.error("No prediction history available");
-          setLoading(false);
-          return;
-        }
-
-        pollutantData = {
-          PM2_5: lastPrediction.pollutants.PM2_5,
-          NO: lastPrediction.pollutants.NO,
-          NO2: lastPrediction.pollutants.NO2,
-          NOx: lastPrediction.pollutants.NOx,
-          CO: lastPrediction.pollutants.CO,
-          SO2: lastPrediction.pollutants.SO2,
-          O3: lastPrediction.pollutants.O3,
-          date: lastPrediction.date || new Date().toISOString().split("T")[0],
-          city: lastPrediction.city || "Unknown",
-        };
+      if (!lastPrediction) {
+        toast.error("No prediction history available");
+        setLoading(false);
+        return;
       }
+
+      const pollutantData = {
+        PM2_5: lastPrediction.pollutants.PM2_5,
+        NO: lastPrediction.pollutants.NO,
+        NO2: lastPrediction.pollutants.NO2,
+        NOx: lastPrediction.pollutants.NOx,
+        CO: lastPrediction.pollutants.CO,
+        SO2: lastPrediction.pollutants.SO2,
+        O3: lastPrediction.pollutants.O3,
+        date: lastPrediction.date || new Date().toISOString().split("T")[0],
+        city: "Last Prediction",
+      };
 
       console.log("Analyzing pollutant data:", pollutantData);
       const response = await api.analyzeProblems(pollutantData);
@@ -182,7 +71,6 @@ export default function Problems() {
         problem_count: response.data.problem_count || 0,
         city: pollutantData.city,
         date: pollutantData.date,
-        filter_info: pollutantData.filter_info,
       };
 
       setAnalysisResult(transformedResult);
@@ -313,8 +201,8 @@ export default function Problems() {
     if (!analysisResult || analysisResult.problem_pollutants.length === 0)
       return {};
 
-    const pollutants = analysisResult.problem_pollutants.map(
-      (p) => p.pollutant,
+    const pollutants = analysisResult.problem_pollutants.map((p) =>
+      formatPollutantName(p.pollutant),
     );
     const currentValues = analysisResult.problem_pollutants.map(
       (p) => p.current_value,
@@ -344,14 +232,22 @@ export default function Problems() {
         top: 10,
       },
       grid: {
-        left: "3%",
-        right: "4%",
-        bottom: "3%",
+        left: "10%",
+        right: "6%",
+        bottom: "10%",
         top: "15%",
         containLabel: true,
       },
       xAxis: {
         type: "category",
+        name: "Pollutant",
+        nameLocation: "middle",
+        nameGap: 30,
+        nameTextStyle: {
+          color: "#e5e7eb",
+          fontSize: 13,
+          fontWeight: "bold",
+        },
         data: pollutants,
         axisLabel: {
           color: "#9ca3af",
@@ -365,9 +261,13 @@ export default function Problems() {
       },
       yAxis: {
         type: "value",
-        name: "µg/m³",
+        name: "Concentration",
+        nameLocation: "middle",
+        nameGap: 60,
         nameTextStyle: {
-          color: "#9ca3af",
+          color: "#e5e7eb",
+          fontSize: 13,
+          fontWeight: "bold",
         },
         axisLabel: {
           color: "#9ca3af",
@@ -407,119 +307,24 @@ export default function Problems() {
     };
   };
 
-  const getDifferenceBarChart = (pollutant) => {
-    if (!pollutant) return {};
-
-    const difference = pollutant.current_value - pollutant.safe_limit;
-
-    return {
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "axis",
-        axisPointer: {
-          type: "shadow",
-        },
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        borderColor: "#333",
-        textStyle: {
-          color: "#fff",
-        },
-        formatter: (params) => {
-          const value = params[0].value;
-          return `${params[0].name}<br/>${params[0].seriesName}: ${value.toFixed(1)} ${pollutantUnits[pollutant.pollutant.toLowerCase()] || "µg/m³"}`;
-        },
-      },
-      grid: {
-        left: "3%",
-        right: "4%",
-        bottom: "3%",
-        top: "10%",
-        containLabel: true,
-      },
-      xAxis: {
-        type: "category",
-        data: ["Current Level", "Safe Limit", "Excess"],
-        axisLabel: {
-          color: "#9ca3af",
-          rotate: 0,
-          fontSize: 11,
-        },
-        axisLine: {
-          lineStyle: {
-            color: "#4b5563",
-          },
-        },
-      },
-      yAxis: {
-        type: "value",
-        name: pollutantUnits[pollutant.pollutant.toLowerCase()] || "µg/m³",
-        nameTextStyle: {
-          color: "#9ca3af",
-        },
-        axisLabel: {
-          color: "#9ca3af",
-        },
-        axisLine: {
-          lineStyle: {
-            color: "#4b5563",
-          },
-        },
-        splitLine: {
-          lineStyle: {
-            color: "#374151",
-            type: "dashed",
-          },
-        },
-      },
-      series: [
-        {
-          name: "Value",
-          type: "bar",
-          data: [
-            {
-              value: pollutant.current_value,
-              itemStyle: { color: "#ef4444" },
-            },
-            {
-              value: pollutant.safe_limit,
-              itemStyle: { color: "#22c55e" },
-            },
-            {
-              value: difference,
-              itemStyle: { color: "#f59e0b" },
-            },
-          ],
-          barWidth: "50%",
-          label: {
-            show: true,
-            position: "top",
-            color: "#e5e7eb",
-            fontSize: 12,
-            fontWeight: "bold",
-            formatter: (params) => {
-              return params.value.toFixed(1);
-            },
-          },
-        },
-      ],
-    };
-  };
-
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <Header
         title="Problem Analysis"
-        description="Identify problematic pollutants and assess their health impacts by city"
+        description="Identify problematic pollutants and assess their health impacts"
       />
 
       {/* Data Source Selection */}
       <div className="bg-card border border-border rounded-lg p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">
               Analyze Pollutants
             </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Analyze pollutant levels from the last prediction
+            </p>
           </div>
           <button
             onClick={handleAnalyze}
@@ -531,99 +336,9 @@ export default function Problems() {
                 Analyzing...
               </>
             ) : (
-              <>Analyze</>
+              <>Analyze Last Prediction</>
             )}
           </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Data Source Toggle */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Data Source
-            </label>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDataSource("prediction")}
-                className={`flex-1 flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all ${
-                  dataSource === "prediction"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "bg-secondary/50 text-foreground hover:bg-muted border border-border"
-                }`}>
-                <span>Last Prediction</span>
-              </button>
-              <button
-                onClick={() => setDataSource("city")}
-                className={`flex-1 flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all ${
-                  dataSource === "city"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "bg-secondary/50 text-foreground hover:bg-muted border border-border"
-                }`}>
-                <span>City Data</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Filters Row */}
-          {dataSource === "city" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              {/* City Selector */}
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Select City
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full px-4 py-2.5 pr-10 bg-secondary/50 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer appearance-none">
-                    {cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-                </div>
-              </div>
-
-              {/* Time Filter */}
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Time Period
-                </label>
-                <div className="relative">
-                  <select
-                    value={timeFilter}
-                    onChange={(e) => setTimeFilter(e.target.value)}
-                    className="w-full px-4 py-2.5 pr-10 bg-secondary/50 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer appearance-none">
-                    <option value="latest">Latest Data</option>
-                    <option value="all_time">All Time Average</option>
-
-                    {availableYears.length > 0 && (
-                      <optgroup label="Year Average">
-                        {availableYears.map((year) => (
-                          <option key={year} value={`year_${year}`}>
-                            {year} Average
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-
-                    <optgroup label="Season Average">
-                      <option value="season_winter">Winter Average</option>
-                      <option value="season_summer">Summer Average</option>
-                      <option value="season_monsoon">Monsoon Average</option>
-                      <option value="season_post_monsoon">
-                        Post-Monsoon Average
-                      </option>
-                    </optgroup>
-                  </select>
-                  <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -631,14 +346,14 @@ export default function Problems() {
       {analysisResult && (
         <>
           {/* Context Info */}
-          <div className="bg-card border border-border rounded-lg p-5">
+          <div className="bg-card border border-border rounded-lg py-5 px-10">
             <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <LucideDatabase className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Location</p>
+                  <p className="text-xs text-muted-foreground">Data Source</p>
                   <p className="text-base font-semibold text-foreground">
                     {analysisResult.city}
                   </p>
@@ -646,36 +361,10 @@ export default function Problems() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Time Period</p>
-                  <p className="text-base font-semibold text-foreground">
-                    {analysisResult.filter_info
-                      ? analysisResult.filter_info.type === "latest"
-                        ? new Date(analysisResult.date).toLocaleDateString()
-                        : analysisResult.filter_info.type === "season"
-                          ? `${analysisResult.filter_info.season} (${analysisResult.filter_info.records} records)`
-                          : analysisResult.filter_info.type === "month"
-                            ? `${analysisResult.filter_info.month_name} ${analysisResult.filter_info.year}`
-                            : analysisResult.filter_info.type === "year"
-                              ? `Year ${analysisResult.filter_info.year}`
-                              : analysisResult.filter_info.type === "all_time"
-                                ? `All Time (${analysisResult.filter_info.records} records)`
-                                : new Date(
-                                    analysisResult.date,
-                                  ).toLocaleDateString()
-                      : new Date(analysisResult.date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${analysisResult.problem_count > 0 ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                  className={`w-12 h-12 rounded-full flex items-center justify-center ${analysisResult.problem_count > 0 ? "bg-red-500/10" : "bg-green-500/10"}`}>
                   <AlertTriangle
-                    className={`w-5 h-5 ${analysisResult.problem_count > 0 ? "text-red-500" : "text-green-500"}`}
+                    className={`w-8 h-8 ${analysisResult.problem_count > 0 ? "text-red-500" : "text-green-500"}`}
                   />
                 </div>
                 <div>
@@ -775,32 +464,34 @@ export default function Problems() {
                       </div>
 
                       {/* Right: Metrics */}
-                      <div className="space-y-3">
-                        <MetricBox
-                          label="Current"
-                          value={selectedPollutant.current_value.toFixed(1)}
-                          unit={
-                            pollutantUnits[
-                              selectedPollutant.pollutant.toLowerCase()
-                            ] || "µg/m³"
-                          }
-                          color="text-red-500"
-                        />
-                        <MetricBox
-                          label="Safe"
-                          value={selectedPollutant.safe_limit.toFixed(1)}
-                          unit={
-                            pollutantUnits[
-                              selectedPollutant.pollutant.toLowerCase()
-                            ] || "µg/m³"
-                          }
-                          color="text-green-500"
-                        />
-                        <MetricBox
-                          label="Excess"
-                          value={`${selectedPollutant.excess.toFixed(0)}%`}
-                          color="text-orange-500"
-                        />
+                      <div className="flex flex-col justify-center items-center mb-4">
+                        <div className="w-full max-w-xs space-y-3">
+                          <MetricBox
+                            label="Current"
+                            value={selectedPollutant.current_value.toFixed(1)}
+                            unit={
+                              pollutantUnits[
+                                selectedPollutant.pollutant.toLowerCase()
+                              ] || "µg/m³"
+                            }
+                            color="text-red-500"
+                          />
+                          <MetricBox
+                            label="Safe"
+                            value={selectedPollutant.safe_limit.toFixed(1)}
+                            unit={
+                              pollutantUnits[
+                                selectedPollutant.pollutant.toLowerCase()
+                              ] || "µg/m³"
+                            }
+                            color="text-green-500"
+                          />
+                          <MetricBox
+                            label="Excess"
+                            value={`${selectedPollutant.excess.toFixed(0)}%`}
+                            color="text-orange-500"
+                          />
+                        </div>
                       </div>
                     </div>
 

@@ -23,10 +23,10 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/predict" element={<Predict />} />
             <Route path="/map" element={<CityMap />} />
-            <Route path="/monitor" element={<Monitor />} />
+            <Route path="/monitor-cities" element={<Monitor />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/problems" element={<Problems />} />
-            <Route path="/solutions" element={<Solutions />} />
+            {/* <Route path="/solutions" element={<Solutions />} /> */}
             <Route path="/dataset" element={<Dataset />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />

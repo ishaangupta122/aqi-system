@@ -17,7 +17,6 @@ class PollutantLevels(BaseModel):
     O3: float
     month: int  # 1-12
     day_type: str  # "weekend" or "weekday"
-    city: Optional[str] = None
 
 
 class PredictionResponse(BaseModel):

@@ -69,6 +69,21 @@ async def get_city_aggregated_data(
     return analytics_controller.get_city_aggregated_data(city_name, filter_type, year, month, season)
 
 
+@router.get("/overall/aggregated")
+async def get_overall_aggregated_data(
+    filter_type: str = 'all_time',
+    year: Optional[int] = None,
+    season: Optional[str] = None
+):
+    """Get aggregated pollutant data across all cities with time filtering for problem analysis
+    
+    - filter_type='all_time': Returns average across all available data
+    - filter_type='year': Returns average for specific year (requires year parameter)
+    - filter_type='season': Returns average for specific season (requires season parameter: winter, summer, monsoon, post_monsoon)
+    """
+    return analytics_controller.get_overall_aggregated_data(filter_type, year, season)
+
+
 @router.get("/model/info")
 async def get_model_info():
     """Get model information and performance metrics"""
@@ -102,22 +117,25 @@ async def get_aqi_frequency(year: Optional[int] = None, bin_size: int = 50):
 
 
 @router.get("/analytics/city-comparison")
-async def get_city_comparison(category: Optional[str] = None, limit: int = 20):
-    """Get city comparison data with optional AQI category filter
+async def get_city_comparison(year: Optional[int] = None, limit: int = 20):
+    """Get city comparison data with optional year filter
     
-    - category: Optional filter ('All', 'Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe')
+    - year: Optional year filter. If None, returns data for all years.
     - limit: Maximum number of cities to return (default: 20)
     """
-    return analytics_controller.get_city_comparison(category, limit)
+    return analytics_controller.get_city_comparison(year, limit)
 
 
 @router.get("/analytics/seasonal")
-async def get_seasonal_data():
+async def get_seasonal_data(year: Optional[int] = None):
     """Get seasonal AQI data grouped by months and seasons
+    
+    - If year is None: Returns data for all years
+    - If year is provided: Returns data for that specific year
     
     Returns monthly average AQI and seasonal average AQI with categories
     """
-    return analytics_controller.get_seasonal_data()
+    return analytics_controller.get_seasonal_data(year)
 
 
 @router.get("/analytics/correlation")

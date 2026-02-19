@@ -105,18 +105,18 @@ def get_prediction_features() -> dict:
                 "label": "Month",
                 "type": "select",
                 "options": [
-                    {"value": 1, "label": "January", "season": "Winter"},
-                    {"value": 2, "label": "February", "season": "Winter"},
-                    {"value": 3, "label": "March", "season": "Summer"},
-                    {"value": 4, "label": "April", "season": "Summer"},
-                    {"value": 5, "label": "May", "season": "Summer"},
-                    {"value": 6, "label": "June", "season": "Monsoon"},
-                    {"value": 7, "label": "July", "season": "Monsoon"},
-                    {"value": 8, "label": "August", "season": "Monsoon"},
-                    {"value": 9, "label": "September", "season": "Monsoon"},
-                    {"value": 10, "label": "October", "season": "PostMonsoon"},
-                    {"value": 11, "label": "November", "season": "PostMonsoon"},
-                    {"value": 12, "label": "December", "season": "Winter"}
+                    {"value": 1, "label": "January"},
+                    {"value": 2, "label": "February"},
+                    {"value": 3, "label": "March"},
+                    {"value": 4, "label": "April"},
+                    {"value": 5, "label": "May"},
+                    {"value": 6, "label": "June"},
+                    {"value": 7, "label": "July"},
+                    {"value": 8, "label": "August"},
+                    {"value": 9, "label": "September"},
+                    {"value": 10, "label": "October"},
+                    {"value": 11, "label": "November"},
+                    {"value": 12, "label": "December"}
                 ],
                 "default": 1
             },
@@ -232,6 +232,7 @@ def predict_aqi(pollutants: PollutantLevels) -> dict:
         season = get_season(month)
         
         # Create input data with only required features
+        # Note: Using 'PM2.5' (with dot) to match the model's expected feature names
         input_data = {
             'PM2.5': pollutants.PM2_5,
             'NO': pollutants.NO,
@@ -244,9 +245,11 @@ def predict_aqi(pollutants: PollutantLevels) -> dict:
             'is_weekend': is_weekend
         }
         
-        # Add season one-hot encoding
-        for s in ['Monsoon', 'PostMonsoon', 'Summer', 'Winter']:
-            input_data[f'season_{s}'] = 1 if s == season else 0
+        # Add season one-hot encoding as integers (0 or 1)
+        input_data['season_Monsoon'] = 1 if season == 'Monsoon' else 0
+        input_data['season_PostMonsoon'] = 1 if season == 'PostMonsoon' else 0
+        input_data['season_Summer'] = 1 if season == 'Summer' else 0
+        input_data['season_Winter'] = 1 if season == 'Winter' else 0
         
         # Create dataframe with correct feature order
         df_input = pd.DataFrame([input_data])
@@ -283,8 +286,7 @@ def predict_aqi(pollutants: PollutantLevels) -> dict:
                 'is_weekend': bool(is_weekend),
                 'day_type': pollutants.day_type,
                 'season': season
-            },
-            'city': pollutants.city
+            }
         }
         data_manager.add_prediction_to_history(prediction_record)
         

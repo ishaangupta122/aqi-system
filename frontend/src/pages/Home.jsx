@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import StatCard from "../components/StatCard";
 import FeatureCard from "../components/FeatureCard";
 import Header from "../components/Header";
+import { color } from "echarts";
 
 export default function Home() {
   const [stats, setStats] = useState(null);
@@ -77,6 +78,118 @@ export default function Home() {
         />
       </div>
 
+      {/* AQI Categories Table */}
+      <div>
+        <h2 className="text-2xl font-medium text-foreground mb-4">
+          AQI Categories
+        </h2>
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
+                  Category
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
+                  AQI Range
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
+                  Health Impact
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">
+                  Advisory
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                {
+                  label: "Good",
+                  range: "0 – 50",
+                  color: "#10b981",
+                  impact: "Air quality is satisfactory.",
+                  advisory: "No precautions needed. Enjoy outdoor activities.",
+                },
+                {
+                  label: "Satisfactory",
+                  range: "51 – 100",
+                  color: "#fbbf24",
+                  impact: "Acceptable air quality for most people.",
+                  advisory:
+                    "Sensitive individuals should limit prolonged exertion.",
+                },
+                {
+                  label: "Moderate",
+                  range: "101 – 200",
+                  color: "#f472b6",
+                  impact:
+                    "May cause breathing discomfort on prolonged exposure.",
+                  advisory:
+                    "People with respiratory issues should reduce outdoor time.",
+                },
+                {
+                  label: "Poor",
+                  range: "201 – 300",
+                  color: "#c026d3",
+                  impact: "May cause respiratory issues for most.",
+                  advisory:
+                    "Wear masks outdoors. Limit strenuous outdoor activity.",
+                },
+                {
+                  label: "Very Poor",
+                  range: "301 – 400",
+                  color: "#ef4444",
+                  impact:
+                    "May cause serious health effects on prolonged exposure.",
+                  advisory: "Avoid outdoor activity. Keep windows closed.",
+                },
+                {
+                  label: "Severe",
+                  range: "400+",
+                  color: "#991b1b",
+                  impact: "Health emergency — everyone may be affected.",
+                  advisory:
+                    "Stay indoors. Use air purifiers. Seek medical advice.",
+                },
+              ].map((row, i) => (
+                <tr
+                  key={row.label}
+                  className="border-b border-border/50 last:border-0 transition-colors hover:bg-muted/20">
+                  <td className="px-4 py-3">
+                    <span
+                      className="flex items-center gap-2 font-semibold"
+                      style={{ color: row.color }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: row.color,
+                          display: "inline-block",
+                          flexShrink: 0,
+                        }}
+                      />
+                      {row.label}
+                    </span>
+                  </td>
+                  <td
+                    className="px-4 py-3 font-mono font-medium text-foreground"
+                    style={{ color: row.color }}>
+                    {row.range}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
+                    {row.impact}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+                    {row.advisory}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Key Features */}
       <div>
         <h2 className="text-2xl font-medium text-foreground mb-4">
@@ -117,7 +230,7 @@ export default function Home() {
       </div>
 
       {/* Quick Actions */}
-      <div>
+      {/* <div>
         <h2 className="text-2xl font-medium text-foreground mb-4">
           Quick Start Guide
         </h2>
@@ -181,7 +294,7 @@ export default function Home() {
             </li>
           </ol>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

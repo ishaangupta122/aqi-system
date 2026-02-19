@@ -18,6 +18,11 @@ import StatCard from "../components/StatCard";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
 
+// Helper function to format pollutant names
+const formatPollutantName = (name) => {
+  return name.replace(/_/g, ".").toUpperCase();
+};
+
 export default function History() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +111,7 @@ export default function History() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <Header
-          title="History"
+          title="Prediction History"
           description="View and manage your prediction history"
         />
 
@@ -288,7 +293,7 @@ function HistoryCard({ item }) {
                   <span
                     key={key}
                     className="px-2 py-1 bg-primary/10 border border-primary/40 text-xs rounded text-primary">
-                    {key.toUpperCase()}: {value.toFixed(1)}
+                    {formatPollutantName(key)}: {value.toFixed(1)}
                   </span>
                 ))}
             </div>

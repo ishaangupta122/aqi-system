@@ -9,7 +9,7 @@ import joblib
 
 
 # Load dataset
-df = pd.read_csv("city_day.csv")
+df = pd.read_csv("aqi_data.csv")
 
 # Display initial data preview
 print("First 5 rows of dataset:")

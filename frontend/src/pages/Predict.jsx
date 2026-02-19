@@ -10,15 +10,12 @@ export default function Predict() {
   const [pollutants, setPollutants] = useState({});
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [dayType, setDayType] = useState("weekday");
-  const [selectedCity, setSelectedCity] = useState("");
-  const [cities, setCities] = useState([]);
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingFeatures, setLoadingFeatures] = useState(true);
 
   useEffect(() => {
     loadFeatures();
-    loadCities();
   }, []);
 
   const loadFeatures = async () => {
@@ -38,18 +35,6 @@ export default function Predict() {
       console.error(error);
     } finally {
       setLoadingFeatures(false);
-    }
-  };
-
-  const loadCities = async () => {
-    try {
-      const response = await api.getCities();
-      setCities(response.data.cities);
-      if (response.data.cities.length > 0) {
-        setSelectedCity(response.data.cities[0]);
-      }
-    } catch (error) {
-      toast.error("Failed to load cities");
     }
   };
 
@@ -75,7 +60,6 @@ export default function Predict() {
         ...pollutants,
         month: month,
         day_type: dayType,
-        city: selectedCity,
       });
       setPrediction(response.data);
       toast.success("AQI predicted successfully!");
@@ -121,30 +105,10 @@ export default function Predict() {
 
       {/* Location & Temporal Settings */}
       <div className="bg-card border border-border rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* City Selection */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Select City
-            </label>
-            <div className="relative">
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-2.5 pr-10 text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer appearance-none">
-                {cities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Month Selection */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               {features?.temporal.month.label}
             </label>
             <div className="relative">
@@ -154,7 +118,7 @@ export default function Predict() {
                 className="w-full bg-secondary/50 border border-border rounded-lg px-4 py-2.5 pr-10 text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer appearance-none">
                 {features?.temporal.month.options.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label} ({option.season})
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -164,7 +128,7 @@ export default function Predict() {
 
           {/* Day Type Selection */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               {features?.temporal.day_type.label}
             </label>
             <div className="relative">
@@ -254,51 +218,55 @@ export default function Predict() {
           {/* Prediction Breakdown Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Predicted AQI */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-6">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
               <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
                 PREDICTED
               </p>
-              <p className={`text-3xl font-bold ${aqiInfo.textColor}`}>
+              <p className={`text-3xl font-semibold ${aqiInfo.textColor}`}>
                 {prediction.aqi.toFixed(1)}
               </p>
             </div>
 
             {/* Category */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-6">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
               <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
                 CATEGORY
               </p>
-              <p className={`text-3xl font-bold ${aqiInfo.textColor}`}>
+              <p className={`text-3xl font-semibold ${aqiInfo.textColor}`}>
                 {prediction.category}
               </p>
             </div>
 
             {/* Season */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-6">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
               <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
                 SEASON
               </p>
-              <p className="text-3xl font-bold text-cyan-400">
+              <p className="text-3xl font-semibold text-cyan-400">
                 {prediction.temporal_info?.season || "N/A"}
               </p>
             </div>
 
             {/* Health Status */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-6">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
               <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
                 HEALTH STATUS
               </p>
               <p
-                className={`text-2xl font-bold ${
+                className={`text-3xl font-semibold ${
                   aqiInfo.category === "Good" ||
                   aqiInfo.category === "Satisfactory"
                     ? "text-green-500"
-                    : "text-red-500"
+                    : aqiInfo.category === "Moderate"
+                      ? "text-amber-500"
+                      : "text-red-500"
                 }`}>
                 {aqiInfo.category === "Good" ||
                 aqiInfo.category === "Satisfactory"
                   ? "Safe"
-                  : "Unsafe"}
+                  : aqiInfo.category === "Moderate"
+                    ? "Caution"
+                    : "Unsafe"}
               </p>
             </div>
           </div>

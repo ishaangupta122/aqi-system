@@ -40,6 +40,17 @@ export const api = {
     if (season) params.append("season", season);
     return apiClient.get(`/city/${cityName}/aggregated?${params.toString()}`);
   },
+  getOverallAggregatedData: (
+    filterType = "all_time",
+    year = null,
+    season = null,
+  ) => {
+    const params = new URLSearchParams();
+    params.append("filter_type", filterType);
+    if (year) params.append("year", year);
+    if (season) params.append("season", season);
+    return apiClient.get(`/overall/aggregated?${params.toString()}`);
+  },
 
   // Analytics
   getAnalyticsOverview: () => apiClient.get("/analytics/overview"),
@@ -53,13 +64,16 @@ export const api = {
     params.append("bin_size", binSize);
     return apiClient.get(`/analytics/frequency?${params.toString()}`);
   },
-  getCityComparison: (category, limit = 20) => {
+  getCityComparison: (year, limit = 20) => {
     const params = new URLSearchParams();
-    if (category) params.append("category", category);
+    if (year) params.append("year", year);
     params.append("limit", limit);
     return apiClient.get(`/analytics/city-comparison?${params.toString()}`);
   },
-  getSeasonalData: () => apiClient.get("/analytics/seasonal"),
+  getSeasonalData: (year) => {
+    const params = year ? `?year=${year}` : "";
+    return apiClient.get(`/analytics/seasonal${params}`);
+  },
   getCorrelationData: () => apiClient.get("/analytics/correlation"),
   // Problems
   analyzeProblems: (pollutantData) =>

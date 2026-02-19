@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Calendar,
   ChevronDown,
+  Minus,
 } from "lucide-react";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
@@ -32,6 +33,10 @@ export default function Monitor() {
 
   useEffect(() => {
     if (selectedCity) {
+      // Reset year filters when changing cities
+      setSelectedYearAQI("all");
+      setSelectedYearPollutants("all");
+      setAvailableYears([]);
       loadCityStats();
       loadAQIData();
       loadPollutantsData();
@@ -88,13 +93,25 @@ export default function Monitor() {
 
       setAqiData(transformedData);
 
-      // Set available years for the dropdown (only once)
-      if (
-        data.available_years &&
-        data.available_years.length > 0 &&
-        availableYears.length === 0
-      ) {
+      // Update available years for the dropdown
+      if (data.available_years && data.available_years.length > 0) {
         setAvailableYears(data.available_years);
+
+        // If only one year is available, automatically select it
+        if (data.available_years.length === 1) {
+          const singleYear = data.available_years[0].toString();
+          if (selectedYearAQI !== singleYear) {
+            setSelectedYearAQI(singleYear);
+          }
+        } else {
+          // Reset year selection if current year is not available
+          if (
+            selectedYearAQI !== "all" &&
+            !data.available_years.includes(parseInt(selectedYearAQI))
+          ) {
+            setSelectedYearAQI("all");
+          }
+        }
       }
     } catch (error) {
       toast.error("Failed to load AQI data");
@@ -130,13 +147,25 @@ export default function Monitor() {
 
       setPollutantsData(transformedData);
 
-      // Set available years for the dropdown (only once)
-      if (
-        data.available_years &&
-        data.available_years.length > 0 &&
-        availableYears.length === 0
-      ) {
+      // Update available years for the dropdown
+      if (data.available_years && data.available_years.length > 0) {
         setAvailableYears(data.available_years);
+
+        // If only one year is available, automatically select it
+        if (data.available_years.length === 1) {
+          const singleYear = data.available_years[0].toString();
+          if (selectedYearPollutants !== singleYear) {
+            setSelectedYearPollutants(singleYear);
+          }
+        } else {
+          // Reset year selection if current year is not available
+          if (
+            selectedYearPollutants !== "all" &&
+            !data.available_years.includes(parseInt(selectedYearPollutants))
+          ) {
+            setSelectedYearPollutants("all");
+          }
+        }
       }
     } catch (error) {
       toast.error("Failed to load pollutants data");
@@ -155,32 +184,69 @@ export default function Monitor() {
     // Determine chart title based on filter
     let chartTitle = "AQI Trend";
     if (aqiData.filter === "all_time") {
-      chartTitle = "AQI Trend - Average by Year";
+      chartTitle = "AQI Trend {filter|- All Time (Yearly Average)}";
     } else if (aqiData.year) {
-      chartTitle = `AQI Trend - ${aqiData.year} (Monthly Average)`;
+      chartTitle = `AQI Trend {filter|- ${aqiData.year} (Monthly Average)}`;
     }
 
     return {
       backgroundColor: "transparent",
       title: {
         text: chartTitle,
-        textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+        textStyle: {
+          color: "#e5e7eb",
+          fontSize: 16,
+          fontWeight: "bold",
+          rich: {
+            filter: {
+              color: "hsl(168, 76%, 42%)",
+              fontSize: 14,
+              fontWeight: "normal",
+            },
+          },
+        },
       },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        borderColor: "#4b5563",
-        textStyle: { color: "#e5e7eb" },
+        axisPointer: {
+          type: "line",
+          lineStyle: { color: "#4b5563", type: "dashed" },
+        },
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
         formatter: (params) => {
           if (!params || params.length === 0) return "";
+          const idx = params[0].dataIndex;
           const label = params[0].axisValue;
           const aqi = params[0].value;
-          const category = getAQICategory(aqi);
-          return `<div style="padding: 8px;">
-            <div style="font-weight: bold; margin-bottom: 4px;">${label}</div>
-            <div>AQI: <b style="color: #3b82f6;">${aqi?.toFixed(2) || "N/A"}</b></div>
-            <div>Category: ${category.emoji} ${category.category}</div>
-          </div>`;
+          if (aqi == null) return "";
+          const cat = getAQICategory(aqi);
+          const prevVal = idx > 0 ? aqiValues[idx - 1] : null;
+          const delta = prevVal !== null ? (aqi - prevVal).toFixed(1) : null;
+          const deltaStr =
+            delta !== null
+              ? `<span style="color:${parseFloat(delta) <= 0 ? "#6ee7b7" : "#f87171"}; font-size:11px; margin-left:6px;">${parseFloat(delta) > 0 ? "+" : ""}${delta}</span>`
+              : "";
+          return `
+            <div style="padding:12px 16px; min-width:190px; font-family:inherit;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                <span style="font-size:18px;">${cat.emoji}</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:14px;">${label}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Avg AQI</span>
+                <span style="color:${cat.color}; font-weight:700; font-size:16px;">${aqi.toFixed(1)}${deltaStr}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#9ca3af; font-size:12px;">Category</span>
+                <span style="color:${cat.color}; font-weight:600; font-size:12px;">${cat.category}</span>
+              </div>
+              <div style="background:#1f2937; border-radius:6px; padding:6px 8px; font-size:11px; color:#d1d5db; border-left:3px solid ${cat.color};">
+                ${cat.description}
+              </div>
+            </div>`;
         },
       },
       grid: {
@@ -259,27 +325,72 @@ export default function Monitor() {
     // Determine chart title based on filter
     let chartTitle = "Pollutant Levels";
     if (pollutantsData.filter === "all_time") {
-      chartTitle = "Pollutant Levels - Average by Year";
+      chartTitle = "Pollutant Levels {filter|- All Time (Yearly Average)}";
     } else if (pollutantsData.year) {
-      chartTitle = `Pollutant Levels - ${pollutantsData.year} (Monthly Average)`;
+      chartTitle = `Pollutant Levels {filter|- ${pollutantsData.year} (Monthly Average)}`;
     }
+
+    const pollutantColors = {
+      "PM2.5": "#ef4444",
+      NO: "#f59e0b",
+      NO2: "#8b5cf6",
+      NOx: "#06b6d4",
+      CO: "#3b82f6",
+      SO2: "#10b981",
+      O3: "#ec4899",
+    };
 
     return {
       backgroundColor: "transparent",
       title: {
         text: chartTitle,
-        textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+        textStyle: {
+          color: "#e5e7eb",
+          fontSize: 16,
+          fontWeight: "bold",
+          rich: {
+            filter: {
+              color: "hsl(168, 76%, 42%)",
+              fontSize: 14,
+              fontWeight: "normal",
+            },
+          },
+        },
       },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        borderColor: "#4b5563",
-        textStyle: { color: "#e5e7eb" },
         axisPointer: {
-          type: "cross",
-          label: {
-            backgroundColor: "#4b5563",
-          },
+          type: "line",
+          lineStyle: { color: "#4b5563", type: "dashed" },
+        },
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
+        formatter: (params) => {
+          if (!params || params.length === 0) return "";
+          const label = params[0].axisValue;
+          const rows = params
+            .filter((p) => p.value != null)
+            .map((p) => {
+              const color = pollutantColors[p.seriesName] || "#9ca3af";
+              return `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <span style="display:flex; align-items:center; gap:5px; color:#9ca3af; font-size:12px;">
+                    <span style="width:8px; height:8px; border-radius:50%; background:${color}; display:inline-block; flex-shrink:0;"></span>
+                    ${p.seriesName}
+                  </span>
+                  <span style="color:${color}; font-weight:600; font-size:12px; margin-left:16px;">${typeof p.value === "number" ? p.value.toFixed(2) : p.value} <span style="color:#6b7280; font-weight:400;">µg/m³</span></span>
+                </div>`;
+            })
+            .join("");
+          return `
+            <div style="padding:12px 16px; min-width:220px; font-family:inherit;">
+              <div style="color:#f9fafb; font-weight:700; font-size:14px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                📍 ${label}
+              </div>
+              ${rows}
+            </div>`;
         },
       },
       legend: {
@@ -460,7 +571,7 @@ export default function Monitor() {
     <div className="space-y-6">
       {/* Header */}
       <Header
-        title="Monitor"
+        title="Monitor Cities"
         description="Track AQI trends and pollutant levels over time for selected cities"
       />
 
@@ -469,7 +580,7 @@ export default function Monitor() {
         <label className="block text-sm font-medium text-muted-foreground mb-2">
           Select City
         </label>
-        <div className="relative w-full md:w-96">
+        <div className="relative w-full">
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
@@ -491,9 +602,9 @@ export default function Monitor() {
       ) : (
         <>
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
-              icon={<Activity className="w-6 h-6" />}
+              icon={<Activity className="w-8 h-8" />}
               label="Average AQI"
               value={currentAQI?.toFixed(2)}
               color={avgAqiInfo.color}
@@ -501,7 +612,7 @@ export default function Monitor() {
               showCategory={true}
             />
             <StatCard
-              icon={<TrendingDown className="w-6 h-6" />}
+              icon={<TrendingDown className="w-8 h-8" />}
               label="Min AQI"
               value={cityStats?.min_aqi?.toFixed(2) || "N/A"}
               color={minAqiInfo.color}
@@ -509,14 +620,14 @@ export default function Monitor() {
               showCategory={true}
             />
             <StatCard
-              icon={<TrendingUp className="w-6 h-6" />}
+              icon={<TrendingUp className="w-8 h-8" />}
               label="Max AQI"
               value={cityStats?.max_aqi?.toFixed(2) || "N/A"}
               color={maxAqiInfo.color}
               category={maxAqiInfo.category}
               showCategory={true}
             />
-            <StatCard
+            {/* <StatCard
               icon={<AlertCircle className="w-6 h-6" />}
               label="Std Deviation"
               value={cityStats?.std_aqi?.toFixed(2) || "N/A"}
@@ -531,7 +642,7 @@ export default function Monitor() {
               color={dataPointsInfo.color}
               category={dataPointsInfo.category}
               showCategory={true}
-            />
+            /> */}
           </div>
 
           {/* AQI Trend Chart */}
@@ -544,7 +655,10 @@ export default function Monitor() {
                 value={selectedYearAQI}
                 onChange={setSelectedYearAQI}
                 options={[
-                  { value: "all", label: "All Time" },
+                  // Only show "All Time" if there are multiple years
+                  ...(availableYears.length > 1
+                    ? [{ value: "all", label: "All Time" }]
+                    : []),
                   ...availableYears.map((year) => ({
                     value: year.toString(),
                     label: `${year}`,
@@ -583,7 +697,10 @@ export default function Monitor() {
                 value={selectedYearPollutants}
                 onChange={setSelectedYearPollutants}
                 options={[
-                  { value: "all", label: "All Time" },
+                  // Only show "All Time" if there are multiple years
+                  ...(availableYears.length > 1
+                    ? [{ value: "all", label: "All Time" }]
+                    : []),
                   ...availableYears.map((year) => ({
                     value: year.toString(),
                     label: `${year}`,
@@ -628,19 +745,25 @@ function StatCard({
   showCategory = false,
 }) {
   return (
-    <div className="bg-card border border-border rounded-lg px-6 py-3">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="text-primary">{icon}</div>
-        <p className="text-sm text-muted-foreground uppercase">{label}</p>
-      </div>
-      <p className="text-2xl font-bold text-foreground/90">{value}</p>
-      {showCategory && category && (
-        <div
-          className="flex items-center gap-2 mt-2 text-sm font-semibold uppercase tracking-wide"
-          style={{ color: color }}>
-          {category}
+    <div className="bg-card border border-border rounded-lg px-6 py-4">
+      <div className="flex items-center justify-between gap-6">
+        {/* Left: Icon and Label (stacked) */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-primary">{icon}</div>
+          <p className="text-muted-foreground uppercase">{label}</p>
         </div>
-      )}
+        {/* Right: Value and Category */}
+        <div className="text-right">
+          <p className="text-3xl font-bold text-foreground/90">{value}</p>
+          {showCategory && category && (
+            <p
+              className="text-xl font-semibold uppercase tracking-wide mt-1"
+              style={{ color: color }}>
+              {category}
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import ReactECharts from "echarts-for-react";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
-import { TrendingUp, Activity, Calendar, BarChart4 } from "lucide-react";
+import { Activity, Calendar, BarChart4 } from "lucide-react";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
-import { months } from "../lib/constants";
+import { months, getAQICategory } from "../lib/constants";
 
 export default function Analytics() {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -14,14 +14,15 @@ export default function Analytics() {
 
   const [trendFilter, setTrendFilter] = useState("all_time");
   const [frequencyFilter, setFrequencyFilter] = useState("all_time");
-  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [cityComparisonFilter, setCityComparisonFilter] = useState("all_time");
+  const [seasonalFilter, setSeasonalFilter] = useState("all_time");
+  const [monthlyFilter, setMonthlyFilter] = useState("all_time");
   const [trendData, setTrendData] = useState(null);
   const [frequencyData, setFrequencyData] = useState(null);
   const [cityComparisonData, setCityComparisonData] = useState(null);
   const [seasonalData, setSeasonalData] = useState(null);
-  const [correlationData, setCorrelationData] = useState(null);
+  const [monthlyData, setMonthlyData] = useState(null);
   const [availableYears, setAvailableYears] = useState([]);
-  const [availableCategories, setAvailableCategories] = useState([]);
 
   useEffect(() => {
     loadAnalytics();
@@ -29,7 +30,7 @@ export default function Analytics() {
     loadFrequencyData();
     loadCityComparison();
     loadSeasonalData();
-    loadCorrelationData();
+    loadMonthlyData();
   }, []);
 
   // Load trend data when filter changes
@@ -51,7 +52,21 @@ export default function Analytics() {
     if (!loading) {
       loadCityComparison();
     }
-  }, [categoryFilter]);
+  }, [cityComparisonFilter]);
+
+  // Load seasonal data when filter changes
+  useEffect(() => {
+    if (!loading) {
+      loadSeasonalData();
+    }
+  }, [seasonalFilter]);
+
+  // Load monthly data when filter changes
+  useEffect(() => {
+    if (!loading) {
+      loadMonthlyData();
+    }
+  }, [monthlyFilter]);
 
   // Load frequency data when filter changes
   useEffect(() => {
@@ -95,16 +110,16 @@ export default function Analytics() {
 
   const loadCityComparison = async () => {
     try {
-      const category = categoryFilter === "All" ? null : categoryFilter;
-      const response = await api.getCityComparison(category, 20);
+      const year =
+        cityComparisonFilter === "all_time"
+          ? null
+          : parseInt(cityComparisonFilter);
+      const response = await api.getCityComparison(year, 100);
       setCityComparisonData(response.data);
 
-      // Set available categories from first response
-      if (
-        response.data.available_categories &&
-        availableCategories.length === 0
-      ) {
-        setAvailableCategories(response.data.available_categories);
+      // Set available years from first response
+      if (response.data.available_years && availableYears.length === 0) {
+        setAvailableYears(response.data.available_years);
       }
     } catch (error) {
       console.error("Failed to load city comparison data:", error);
@@ -114,21 +129,35 @@ export default function Analytics() {
 
   const loadSeasonalData = async () => {
     try {
-      const response = await api.getSeasonalData();
+      const year =
+        seasonalFilter === "all_time" ? null : parseInt(seasonalFilter);
+      const response = await api.getSeasonalData(year);
       setSeasonalData(response.data);
+
+      // Set available years from first response
+      if (response.data.available_years && availableYears.length === 0) {
+        setAvailableYears(response.data.available_years);
+      }
     } catch (error) {
       console.error("Failed to load seasonal data:", error);
       toast.error("Failed to load seasonal data");
     }
   };
 
-  const loadCorrelationData = async () => {
+  const loadMonthlyData = async () => {
     try {
-      const response = await api.getCorrelationData();
-      setCorrelationData(response.data);
+      const year =
+        monthlyFilter === "all_time" ? null : parseInt(monthlyFilter);
+      const response = await api.getSeasonalData(year);
+      setMonthlyData(response.data);
+
+      // Set available years from first response
+      if (response.data.available_years && availableYears.length === 0) {
+        setAvailableYears(response.data.available_years);
+      }
     } catch (error) {
-      console.error("Failed to load correlation data:", error);
-      toast.error("Failed to load correlation data");
+      console.error("Failed to load monthly data:", error);
+      toast.error("Failed to load monthly data");
     }
   };
 
@@ -225,8 +254,15 @@ export default function Analytics() {
       return {
         backgroundColor: "transparent",
         title: {
-          text: "City Comparison by Average AQI",
+          text: "Top Cities AQI - No Data Available",
           textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+        },
+        grid: {
+          left: "8%",
+          right: "18%",
+          bottom: 80,
+          top: 80,
+          containLabel: true,
         },
         series: [{ type: "bar", data: [] }],
       };
@@ -236,35 +272,79 @@ export default function Analytics() {
     const avgAqi = cityComparisonData.avg_aqi;
     const categories = cityComparisonData.categories;
 
+    const totalCities = cityComparisonData.count || cities.length;
+
+    const titleText =
+      cityComparisonFilter === "all_time"
+        ? `Top Cities AQI {filter|- All Time (Yearly Average)} {count|[${totalCities} cities]}`
+        : `Top Cities AQI {filter|- ${cityComparisonFilter} (Monthly Average)} {count|[${totalCities} cities]}`;
+
     return {
       backgroundColor: "transparent",
       title: {
-        text:
-          categoryFilter === "All"
-            ? `Top Cities by Average AQI`
-            : `${categoryFilter} Cities by Average AQI`,
-        textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+        text: titleText,
+        textStyle: {
+          color: "#e5e7eb",
+          fontSize: 16,
+          fontWeight: "bold",
+          rich: {
+            count: {
+              color: "hsl(168, 76%, 42%)",
+              fontWeight: "bold",
+            },
+            filter: {
+              color: "hsl(168, 76%, 42%)",
+              fontSize: 14,
+              fontWeight: "normal",
+            },
+          },
+        },
       },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
         formatter: (params) => {
           const idx = params[0].dataIndex;
-          return `${cities[idx]}<br/>Avg AQI: ${avgAqi[idx].toFixed(2)}<br/>Category: ${categories[idx]}`;
+          const aqi = avgAqi[idx];
+          const cat = getAQICategory(aqi);
+          const rank = idx + 1;
+          return `
+            <div style="padding:12px 16px; min-width:200px; font-family:inherit;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                <span style="font-size:18px;">${cat.emoji}</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:14px;">${cities[idx]}</span>
+                <span style="margin-left:auto; background:#1f2937; color:#9ca3af; font-size:11px; padding:2px 6px; border-radius:4px;">#${rank}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Avg AQI</span>
+                <span style="color:${cat.color}; font-weight:700; font-size:16px;">${aqi.toFixed(1)}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#9ca3af; font-size:12px;">Category</span>
+                <span style="color:${cat.color}; font-weight:600; font-size:12px;">${cat.category}</span>
+              </div>
+              <div style="background:#1f2937; border-radius:6px; padding:6px 8px; font-size:11px; color:#d1d5db; border-left: 3px solid ${cat.color};">
+                ${cat.description}
+              </div>
+            </div>`;
         },
       },
       grid: {
-        left: "10%",
-        right: "10%",
-        bottom: "10%",
-        top: "15%",
+        left: "8%",
+        right: "18%",
+        bottom: 80,
+        top: 80,
         containLabel: true,
       },
       xAxis: {
         type: "value",
         name: "Avg AQI",
         nameLocation: "middle",
-        nameGap: 30,
+        nameGap: 40,
         nameTextStyle: { color: "#e5e7eb", fontSize: 13, fontWeight: "bold" },
         axisLabel: { color: "#9ca3af" },
         axisLine: { lineStyle: { color: "#4b5563" } },
@@ -274,7 +354,7 @@ export default function Analytics() {
         type: "category",
         name: "City",
         nameLocation: "middle",
-        nameGap: 80,
+        nameGap: 100,
         nameTextStyle: { color: "#e5e7eb", fontSize: 13, fontWeight: "bold" },
         data: cities,
         axisLabel: { color: "#9ca3af", fontSize: 11 },
@@ -314,112 +394,6 @@ export default function Analytics() {
     };
   };
 
-  const getPollutantCorrelationOption = () => {
-    if (!correlationData) return {};
-
-    const pollutants = correlationData.pollutants || [];
-    const matrixData = correlationData.matrix || [];
-
-    // Convert matrix data to ECharts format [x, y, value]
-    const data = matrixData.map((item) => [item.x, item.y, item.value]);
-
-    return {
-      backgroundColor: "transparent",
-      tooltip: {
-        position: "top",
-        formatter: (params) => {
-          const row = pollutants[params.data[1]];
-          const col = pollutants[params.data[0]];
-          return `${row} vs ${col}<br/>Correlation: ${params.data[2]}`;
-        },
-      },
-      grid: {
-        left: "12%",
-        right: "15%",
-        top: "10%",
-        bottom: "12%",
-        containLabel: true,
-      },
-      xAxis: {
-        type: "category",
-        data: pollutants,
-        axisLabel: {
-          color: "#9ca3af",
-          fontSize: 12,
-          rotate: 0,
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitArea: { show: false },
-      },
-      yAxis: {
-        type: "category",
-        data: pollutants,
-        axisLabel: {
-          color: "#9ca3af",
-          fontSize: 12,
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitArea: { show: false },
-      },
-      visualMap: {
-        min: -1,
-        max: 1,
-        calculable: true,
-        orient: "vertical",
-        right: "2%",
-        top: "center",
-        text: ["1", "-1"],
-        textStyle: {
-          color: "#9ca3af",
-          fontSize: 11,
-        },
-        textGap: 10,
-        itemWidth: 20,
-        itemHeight: 140,
-        inRange: {
-          color: [
-            "#6ee7b7",
-            "#86efac",
-            "#a7f3d0",
-            "#bef264",
-            "#fef08a",
-            "#fde047",
-            "#fcd34d",
-            "#fbbf24",
-            "#fb923c",
-            "#fca5a5",
-            "#f87171",
-            "#e57373",
-          ],
-        },
-      },
-      series: [
-        {
-          type: "heatmap",
-          data: data,
-          label: {
-            show: true,
-            color: "#000",
-            fontSize: 11,
-            fontWeight: "bold",
-          },
-          itemStyle: {
-            borderWidth: 2,
-            borderColor: "#1f2937",
-          },
-          emphasis: {
-            itemStyle: {
-              shadowBlur: 10,
-              shadowColor: "rgba(0, 0, 0, 0.5)",
-            },
-          },
-        },
-      ],
-    };
-  };
-
   const getAQITimeSeriesOption = () => {
     // Use data from backend API
     if (!trendData || !trendData.labels || !trendData.values) {
@@ -441,29 +415,69 @@ export default function Analytics() {
       title: {
         text:
           trendData.filter === "all_time"
-            ? "AQI Trend - Average by Year"
-            : `AQI Trend - ${trendData.year} (Monthly Average)`,
-        textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+            ? "AQI Trend {filter|- All Time (Yearly Average)}"
+            : `AQI Trend {filter|- ${trendData.year} (Monthly Average)}`,
+        textStyle: {
+          color: "#e5e7eb",
+          fontSize: 16,
+          fontWeight: "bold",
+          rich: {
+            filter: {
+              color: "hsl(168, 76%, 42%)",
+              fontSize: 14,
+              fontWeight: "normal",
+            },
+          },
+        },
       },
       tooltip: {
         trigger: "axis",
-        formatter: (params) => {
-          const label = params[0].name;
-          const value =
-            params[0].value !== null ? params[0].value.toFixed(2) : "N/A";
-          return `${label}<br/>AQI: ${value}`;
+        axisPointer: {
+          type: "line",
+          lineStyle: { color: "#4b5563", type: "dashed" },
         },
-      },
-      legend: {
-        data: ["AQI"],
-        textStyle: { color: "#9ca3af" },
-        top: "12%",
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
+        formatter: (params) => {
+          if (!params || params.length === 0) return "";
+          const idx = params[0].dataIndex;
+          const aqi = params[0].value;
+          if (aqi == null) return "";
+          const cat = getAQICategory(aqi);
+          const label = params[0].name;
+          const prevVal = idx > 0 ? trendData.values[idx - 1] : null;
+          const delta = prevVal !== null ? (aqi - prevVal).toFixed(1) : null;
+          const deltaStr =
+            delta !== null
+              ? `<span style="color:${parseFloat(delta) <= 0 ? "#6ee7b7" : "#f87171"}; font-size:11px; margin-left:6px;">${parseFloat(delta) > 0 ? "+" : ""}${delta}</span>`
+              : "";
+          return `
+            <div style="padding:12px 16px; min-width:190px; font-family:inherit;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                <span style="font-size:18px;">${cat.emoji}</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:14px;">${label}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Avg AQI</span>
+                <span style="color:${cat.color}; font-weight:700; font-size:16px;">${aqi.toFixed(1)}${deltaStr}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#9ca3af; font-size:12px;">Category</span>
+                <span style="color:${cat.color}; font-weight:600; font-size:12px;">${cat.category}</span>
+              </div>
+              <div style="background:#1f2937; border-radius:6px; padding:6px 8px; font-size:11px; color:#d1d5db; border-left:3px solid ${cat.color};">
+                ${cat.description}
+              </div>
+            </div>`;
+        },
       },
       grid: {
         left: "8%",
         right: "4%",
         bottom: "12%",
-        top: "25%",
+        top: "15%",
         containLabel: true,
       },
       xAxis: {
@@ -568,14 +582,30 @@ export default function Analytics() {
 
     const totalRecords = pieData.reduce((sum, item) => sum + item.value, 0);
 
+    const distTitle =
+      frequencyFilter === "all_time"
+        ? "AQI Category Distribution {filter|- All Time (Yearly Average)}"
+        : `AQI Category Distribution {filter|- ${frequencyFilter} (Monthly Average)}`;
+
     return {
       backgroundColor: "transparent",
       title: [
         {
-          text: "AQI Category Distribution",
+          text: distTitle,
           left: "center",
           top: "2%",
-          textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+          textStyle: {
+            color: "#e5e7eb",
+            fontSize: 16,
+            fontWeight: "bold",
+            rich: {
+              filter: {
+                color: "hsl(168, 76%, 42%)",
+                fontSize: 14,
+                fontWeight: "normal",
+              },
+            },
+          },
         },
         {
           text: `Total Records: ${totalRecords.toLocaleString()}`,
@@ -586,11 +616,40 @@ export default function Analytics() {
       ],
       tooltip: {
         trigger: "item",
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        borderColor: "#333",
-        textStyle: { color: "#fff" },
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
         formatter: (params) => {
-          return `${params.name} (${params.data.range})<br/>Frequency: ${params.value.toLocaleString()} records (${params.percent}%)`;
+          const catInfo = getAQICategory(
+            params.name === "Good"
+              ? 30
+              : params.name === "Moderate"
+                ? 150
+                : params.name === "Poor"
+                  ? 280
+                  : 450,
+          );
+          const pct = params.percent.toFixed(1);
+          return `
+            <div style="padding:12px 16px; min-width:200px; font-family:inherit;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                <span style="font-size:18px;">${catInfo.emoji}</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:14px;">${params.name}</span>
+                <span style="margin-left:auto; color:#9ca3af; font-size:11px;">${params.data.range}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Records</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:13px;">${params.value.toLocaleString()}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#9ca3af; font-size:12px;">Share</span>
+                <span style="color:${params.color}; font-weight:700; font-size:13px;">${pct}%</span>
+              </div>
+              <div style="background:#1f2937; border-radius:6px; padding:6px 8px; font-size:11px; color:#d1d5db; border-left:3px solid ${params.color};">
+                ${catInfo.description}
+              </div>
+            </div>`;
         },
       },
       legend: {
@@ -721,120 +780,227 @@ export default function Analytics() {
     };
   };
 
-  const getSeasonalPolarOption = () => {
-    // Use real seasonal data from backend - Indian seasons
-    const seasons = ["Winter", "Summer", "Post-Monsoon", "Monsoon"];
+  const getSeasonalPieChartOption = () => {
+    if (!seasonalData?.seasonal || seasonalData.seasonal.length === 0) {
+      return {
+        backgroundColor: "transparent",
+        series: [{ type: "pie", data: [] }],
+      };
+    }
 
-    // Get data from seasonalData state or use empty defaults
-    const seasonalValues = seasons.map((season) => {
-      if (!seasonalData?.seasonal) return 0;
-      const found = seasonalData.seasonal.find((s) => s.season === season);
-      return found ? parseFloat(found.avg_aqi.toFixed(2)) : 0;
-    });
+    // Map AQI categories to colors
+    const getCategoryColor = (category) => {
+      switch (category) {
+        case "Good":
+          return "#22c55e"; // Green - safe
+        case "Satisfactory":
+          return "#fb923c"; // Orange
+        case "Moderate":
+          return "#ef4444"; // Red
+        case "Poor":
+          return "#dc2626"; // Darker red
+        case "Very Poor":
+          return "#b91c1c"; // Even darker red
+        case "Severe":
+          return "#991b1b"; // Darkest red
+        default:
+          return "#6b7280"; // Gray fallback
+      }
+    };
 
-    const seasonCategories = seasons.map((season) => {
-      if (!seasonalData?.seasonal) return null;
-      const found = seasonalData.seasonal.find((s) => s.season === season);
-      return found?.category || null;
-    });
+    const pieData = seasonalData.seasonal.map((s) => ({
+      name: s.season,
+      value: parseFloat(s.avg_aqi.toFixed(2)),
+      category: s.category,
+      itemStyle: { color: getCategoryColor(s.category) },
+    }));
 
-    const maxAqi = Math.max(...seasonalValues.filter((v) => v > 0), 100);
-    const indicatorMax = Math.ceil(maxAqi / 50) * 50 + 50;
+    const totalAQI = pieData.reduce((sum, item) => sum + item.value, 0);
+    const avgAQI = (totalAQI / pieData.length).toFixed(2);
+
+    const seasonalTitle =
+      seasonalFilter === "all_time"
+        ? "AQI by Season {filter|- All Time (Yearly Average)}"
+        : `AQI by Season {filter|- ${seasonalFilter} (Monthly Average)}`;
 
     return {
       backgroundColor: "transparent",
-      title: {
-        text: "AQI by Season (Radar Chart)",
-        left: "center",
-        top: "5%",
-        textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
-      },
+      title: [
+        {
+          text: seasonalTitle,
+          left: "center",
+          top: "2%",
+          textStyle: {
+            color: "#e5e7eb",
+            fontSize: 16,
+            fontWeight: "bold",
+            rich: {
+              filter: {
+                color: "hsl(168, 76%, 42%)",
+                fontSize: 14,
+                fontWeight: "normal",
+              },
+            },
+          },
+        },
+        {
+          text: `Average AQI: ${avgAQI}`,
+          left: "center",
+          top: "7%",
+          textStyle: { color: "#9ca3af", fontSize: 13 },
+        },
+      ],
       tooltip: {
         trigger: "item",
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
         formatter: (params) => {
-          let result = `<b>Seasonal AQI</b><br/>`;
-          seasons.forEach((season, idx) => {
-            const cat = seasonCategories[idx] || "N/A";
-            result += `${season}: ${params.value[idx]} (${cat})<br/>`;
-          });
-          return result;
+          const cat = getAQICategory(params.value);
+          const pct = params.percent.toFixed(1);
+          return `
+            <div style="padding:12px 16px; min-width:200px; font-family:inherit;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                <span style="font-size:18px;">${cat.emoji}</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:14px;">${params.name}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Avg AQI</span>
+                <span style="color:${cat.color}; font-weight:700; font-size:16px;">${params.value}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Category</span>
+                <span style="color:${cat.color}; font-weight:600; font-size:12px;">${cat.category}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#9ca3af; font-size:12px;">Share</span>
+                <span style="color:#f9fafb; font-weight:600; font-size:12px;">${pct}%</span>
+              </div>
+              <div style="background:#1f2937; border-radius:6px; padding:6px 8px; font-size:11px; color:#d1d5db; border-left:3px solid ${cat.color};">
+                ${cat.description}
+              </div>
+            </div>`;
         },
       },
-      radar: {
-        indicator: seasons.map((season) => ({
-          name: season,
-          max: indicatorMax,
-        })),
-        shape: "circle",
-        center: ["50%", "55%"],
-        radius: "70%",
-        splitNumber: 5,
-        name: {
-          textStyle: {
-            color: "#9ca3af",
-            fontSize: 14,
-            fontWeight: "bold",
-          },
-        },
-        splitLine: {
-          lineStyle: {
-            color: "#374151",
-            type: "solid",
-          },
-        },
-        splitArea: {
-          show: false,
-        },
-        axisLine: {
-          lineStyle: {
-            color: "#4b5563",
-          },
+      legend: {
+        orient: "vertical",
+        right: "10%",
+        top: "center",
+        textStyle: { color: "#9ca3af", fontSize: 12 },
+        formatter: (name) => {
+          const item = pieData.find((d) => d.name === name);
+          return item ? `${name} (${item.category})` : name;
         },
       },
       series: [
         {
-          type: "radar",
-          data: [
-            {
-              value: seasonalValues,
-              name: "Seasonal AQI",
-              label: {
-                show: true,
-                formatter: (params) => {
-                  const val = seasonalValues[params.dimensionIndex];
-                  return val > 0 ? val.toFixed(1) : "";
-                },
+          name: "Seasonal AQI",
+          type: "pie",
+          radius: ["0%", "60%"],
+          center: ["35%", "55%"],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: "#1f2937",
+            borderWidth: 2,
+          },
+          label: {
+            show: true,
+            position: "outside",
+            formatter: (params) => {
+              const percentage = ((params.value / totalAQI) * 100).toFixed(1);
+              return `{name|${params.name}}\n{category|${params.data.category}}\n{aqi|AQI: ${params.value} (${percentage}%)}`;
+            },
+            rich: {
+              name: {
                 color: "#e5e7eb",
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: "bold",
-                position: "outside",
-                distance: 15,
+                lineHeight: 22,
               },
-              areaStyle: {
-                color: {
-                  type: "radial",
-                  x: 0.5,
-                  y: 0.5,
-                  r: 0.5,
-                  colorStops: [
-                    { offset: 0, color: "rgba(110, 231, 183, 0.8)" },
-                    { offset: 1, color: "rgba(110, 231, 183, 0.3)" },
-                  ],
+              category: {
+                color: "#a3a3a3",
+                fontSize: 12,
+                lineHeight: 18,
+              },
+              aqi: {
+                color: "#9ca3af",
+                fontSize: 11,
+                lineHeight: 16,
+              },
+            },
+          },
+          labelLine: {
+            show: true,
+            length: 35,
+            length2: 30,
+            lineStyle: {
+              color: "#6b7280",
+              width: 2,
+            },
+          },
+          emphasis: {
+            scale: true,
+            scaleSize: 5,
+            label: {
+              show: true,
+              fontSize: 15,
+              fontWeight: "bold",
+            },
+            labelLine: {
+              show: true,
+              lineStyle: {
+                width: 3,
+                color: "#9ca3af",
+              },
+            },
+            itemStyle: {
+              shadowBlur: 15,
+              shadowOffsetX: 0,
+              shadowColor: "rgba(0, 0, 0, 0.5)",
+            },
+          },
+          data: pieData.map((item) => ({
+            name: item.name,
+            value: item.value,
+            category: item.category,
+            itemStyle: item.itemStyle,
+            label: {
+              show: true,
+              formatter: (params) => {
+                const percentage = ((params.value / totalAQI) * 100).toFixed(1);
+                return `{name|${params.name}}\n{category|${params.data.category}}\n{aqi|AQI: ${params.value} (${percentage}%)}`;
+              },
+              rich: {
+                name: {
+                  color: "#e5e7eb",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  lineHeight: 22,
+                },
+                category: {
+                  color: "#a3a3a3",
+                  fontSize: 14,
+                  lineHeight: 18,
+                },
+                aqi: {
+                  color: "#9ca3af",
+                  fontSize: 14,
+                  lineHeight: 16,
                 },
               },
+            },
+            labelLine: {
+              show: true,
+              length: 35,
+              length2: 30,
               lineStyle: {
-                color: "#6ee7b7",
+                color: "#6b7280",
                 width: 2,
               },
-              itemStyle: {
-                color: "#6ee7b7",
-                borderColor: "#fff",
-                borderWidth: 2,
-              },
-              symbol: "circle",
-              symbolSize: 8,
             },
-          ],
+          })),
         },
       ],
     };
@@ -842,10 +1008,9 @@ export default function Analytics() {
 
   const getMonthlyBarOption = () => {
     // Use real monthly data from backend
-    const labels = seasonalData?.monthly?.labels || months;
-    const values = seasonalData?.monthly?.values || Array(12).fill(0);
-    const categories =
-      seasonalData?.monthly?.categories || Array(12).fill(null);
+    const labels = monthlyData?.monthly?.labels || months;
+    const values = monthlyData?.monthly?.values || Array(12).fill(0);
+    const categories = monthlyData?.monthly?.categories || Array(12).fill(null);
 
     // Calming color scheme based on AQI category
     const getCategoryColor = (category) => {
@@ -868,18 +1033,64 @@ export default function Analytics() {
     const maxVal = Math.max(...values.filter((v) => v !== null), 100);
     const yAxisMax = Math.ceil(maxVal / 50) * 50 + 50;
 
+    const monthlyTitle =
+      monthlyFilter === "all_time"
+        ? "Monthly AQI {filter|- All Time (Yearly Average)}"
+        : `Monthly AQI {filter|- ${monthlyFilter} (Monthly Average)}`;
+
     return {
       backgroundColor: "transparent",
       title: {
-        text: "Average AQI by Month",
-        textStyle: { color: "#e5e7eb", fontSize: 16, fontWeight: "bold" },
+        text: monthlyTitle,
+        textStyle: {
+          color: "#e5e7eb",
+          fontSize: 16,
+          fontWeight: "bold",
+          rich: {
+            filter: {
+              color: "hsl(168, 76%, 42%)",
+              fontSize: 14,
+              fontWeight: "normal",
+            },
+          },
+        },
       },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(10, 15, 25, 0.92)",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 0,
         formatter: (params) => {
           const idx = params[0].dataIndex;
-          return `<b>${labels[idx]}</b><br/>AQI: ${params[0].value}<br/>Category: ${categories[idx] || "N/A"}`;
+          const aqi = params[0].value;
+          const cat = getAQICategory(aqi);
+          const rawVal = values[idx];
+          const prevVal = idx > 0 ? values[idx - 1] : null;
+          const delta = prevVal !== null ? (rawVal - prevVal).toFixed(1) : null;
+          const deltaStr =
+            delta !== null
+              ? `<span style="color:${parseFloat(delta) <= 0 ? "#6ee7b7" : "#f87171"}; font-size:11px; margin-left:4px;">${parseFloat(delta) > 0 ? "+" : ""}${delta}</span>`
+              : "";
+          return `
+            <div style="padding:12px 16px; min-width:190px; font-family:inherit;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; border-bottom:1px solid #374151; padding-bottom:8px;">
+                <span style="font-size:18px;">${cat.emoji}</span>
+                <span style="color:#f9fafb; font-weight:700; font-size:14px;">${labels[idx]}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#9ca3af; font-size:12px;">Avg AQI</span>
+                <span style="color:${cat.color}; font-weight:700; font-size:16px;">${aqi}${deltaStr}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#9ca3af; font-size:12px;">Category</span>
+                <span style="color:${cat.color}; font-weight:600; font-size:12px;">${cat.category}</span>
+              </div>
+              <div style="background:#1f2937; border-radius:6px; padding:6px 8px; font-size:11px; color:#d1d5db; border-left: 3px solid ${cat.color};">
+                ${cat.description}
+              </div>
+            </div>`;
         },
       },
       grid: {
@@ -935,7 +1146,7 @@ export default function Analytics() {
       {/* Header */}
       <Header
         title="Analytics"
-        description="Statistical analysis with trends, distribution, city comparisons, and correlations"
+        description="Statistical analysis with trends, distribution, and city comparisons"
       />
 
       {loading ? (
@@ -952,11 +1163,6 @@ export default function Analytics() {
             <div className="flex gap-2">
               {[
                 { id: "trends", label: "Trends", icon: <BarChart4 /> },
-                {
-                  id: "correlations",
-                  label: "Correlations",
-                  icon: <TrendingUp />,
-                },
                 { id: "cities", label: "City Comparison", icon: <Activity /> },
                 {
                   id: "seasonal",
@@ -1034,74 +1240,6 @@ export default function Analytics() {
             </div>
           )}
 
-          {/* Correlations Tab */}
-          {activeTab === "correlations" && (
-            <div className="space-y-6">
-              {/* Correlation Heatmap */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <ReactECharts
-                  option={getPollutantCorrelationOption()}
-                  style={{ height: "500px", width: "100%" }}
-                  opts={{ renderer: "canvas" }}
-                />
-              </div>
-
-              {/* Interpreting Correlations */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-card border border-border rounded-lg p-6 border-l-4 border-l-green-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl font-bold text-foreground">
-                      +1
-                    </span>
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded">
-                      POSITIVE
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Strong Positive Correlation
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Variables increase together
-                  </p>
-                </div>
-
-                <div className="bg-card border border-border rounded-lg p-6 border-l-4 border-l-yellow-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl font-bold text-foreground">
-                      0
-                    </span>
-                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-bold rounded">
-                      NEUTRAL
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    No Correlation
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Variables are independent
-                  </p>
-                </div>
-
-                <div className="bg-card border border-border rounded-lg p-6 border-l-4 border-l-red-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl font-bold text-foreground">
-                      -1
-                    </span>
-                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded">
-                      NEGATIVE
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Strong Negative Correlation
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Variables move in opposite directions
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* City Comparison Tab */}
           {activeTab === "cities" && (
             <div className="space-y-6">
@@ -1112,13 +1250,15 @@ export default function Analytics() {
                     City Comparison by Average AQI
                   </h3>
                   <FilterDropdown
-                    label="Category:"
-                    value={categoryFilter}
-                    onChange={setCategoryFilter}
-                    options={availableCategories.map((category) => ({
-                      value: category,
-                      label: category,
-                    }))}
+                    value={cityComparisonFilter}
+                    onChange={setCityComparisonFilter}
+                    options={[
+                      { value: "all_time", label: "All Time" },
+                      ...availableYears.map((year) => ({
+                        value: year.toString(),
+                        label: year.toString(),
+                      })),
+                    ]}
                   />
                 </div>
 
@@ -1138,17 +1278,49 @@ export default function Analytics() {
           {activeTab === "seasonal" && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6">
-                {/* Polar Chart */}
+                {/* Seasonal Pie Chart */}
                 <div className="bg-card border border-border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      AQI by Season
+                    </h3>
+                    <FilterDropdown
+                      value={seasonalFilter}
+                      onChange={setSeasonalFilter}
+                      options={[
+                        { value: "all_time", label: "All Time" },
+                        ...availableYears.map((year) => ({
+                          value: year.toString(),
+                          label: year.toString(),
+                        })),
+                      ]}
+                    />
+                  </div>
                   <ReactECharts
-                    option={getSeasonalPolarOption()}
-                    style={{ height: "500px", width: "100%" }}
+                    option={getSeasonalPieChartOption()}
+                    style={{ height: "550px", width: "100%" }}
                     opts={{ renderer: "canvas" }}
                   />
                 </div>
 
                 {/* Monthly Bar Chart */}
                 <div className="bg-card border border-border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-foreground">
+                      Monthly AQI
+                    </h3>
+                    <FilterDropdown
+                      value={monthlyFilter}
+                      onChange={setMonthlyFilter}
+                      options={[
+                        { value: "all_time", label: "All Time" },
+                        ...availableYears.map((year) => ({
+                          value: year.toString(),
+                          label: year.toString(),
+                        })),
+                      ]}
+                    />
+                  </div>
                   <ReactECharts
                     option={getMonthlyBarOption()}
                     style={{ height: "400px", width: "100%" }}

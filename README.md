@@ -49,7 +49,7 @@ aqi-system/
 │   │   └── predictor.py
 │   │
 │   ├── data/
-│   │   └── city_day.csv
+│   │   └── aqi_data.csv
 │   │
 │   ├── services/
 │   │   ├── feature_engineering.py
@@ -111,7 +111,7 @@ PM2.5, NO, NO2, NOx, CO, SO2, O3
 
 ## 🧪 Model Training Process
 
-1. Load dataset (`city_day.csv`)
+1. Load dataset (`aqi_data.csv`)
 2. Remove rows missing AQI
 3. Fill missing pollutant values using median
 4. Convert Date → Month, Weekend, Season

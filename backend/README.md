@@ -47,7 +47,7 @@ backend/
 ├── requirements.txt        # Python dependencies
 ├── start.bat              # Windows start script
 ├── ml_model/               # ML model & data
-│   ├── city_day.csv        # Historical AQI dataset
+│   ├── aqi_data.csv        # Historical AQI dataset
 │   ├── train_model.py      # Model training script
 │   ├── model.py            # Model utilities
 ├── controllers/            # Business logic
