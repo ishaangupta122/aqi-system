@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Brain,
   Building2,
   CarFront,
   Database,
@@ -10,22 +11,21 @@ import {
   Home,
   Lightbulb,
   Map,
-  SettingsIcon,
   TreePine,
   TrendingUp,
 } from "lucide-react";
 
 export const navItems = [
-  { path: "/", icon: Home, label: "Home" },
+  { path: "/", icon: Home, label: "Dashboard" },
+  { path: "/model", icon: Brain, label: "Model Info" },
+  { path: "/dataset", icon: Database, label: "Dataset" },
   { path: "/predict", icon: Activity, label: "Predict AQI" },
   { path: "/map", icon: Map, label: "City Map" },
   { path: "/monitor-cities", icon: TrendingUp, label: "Monitor Cities" },
   { path: "/analytics", icon: BarChart3, label: "Analytics" },
   { path: "/problems", icon: AlertTriangle, label: "Problems" },
   // { path: "/solutions", icon: Lightbulb, label: "Solutions" },
-  { path: "/dataset", icon: Database, label: "Dataset" },
   { path: "/history", icon: History, label: "History" },
-  { path: "/settings", icon: SettingsIcon, label: "Settings" },
 ];
 
 export const policyData = {

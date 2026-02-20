@@ -364,25 +364,10 @@ export default function Analytics() {
       series: [
         {
           type: "bar",
-          data: avgAqi.map((aqi, idx) => {
-            // Color based on AQI category - calming colors
-            const category = categories[idx];
-            let color = "#6ee7b7"; // Good - soft mint
-            if (category === "Satisfactory")
-              color = "#a7f3d0"; // soft light green
-            else if (category === "Moderate")
-              color = "#fde68a"; // soft yellow
-            else if (category === "Poor")
-              color = "#fb923c"; // soft coral
-            else if (category === "Very Poor")
-              color = "#f87171"; // soft red
-            else if (category === "Severe") color = "#dc2626"; // muted red
-
-            return {
-              value: parseFloat(aqi.toFixed(2)),
-              itemStyle: { color },
-            };
-          }),
+          data: avgAqi.map((aqi, idx) => ({
+            value: parseFloat(aqi.toFixed(2)),
+            itemStyle: { color: getAQICategory(aqi).color },
+          })),
           label: {
             show: true,
             position: "right",
@@ -788,31 +773,11 @@ export default function Analytics() {
       };
     }
 
-    // Map AQI categories to colors
-    const getCategoryColor = (category) => {
-      switch (category) {
-        case "Good":
-          return "#22c55e"; // Green - safe
-        case "Satisfactory":
-          return "#fb923c"; // Orange
-        case "Moderate":
-          return "#ef4444"; // Red
-        case "Poor":
-          return "#dc2626"; // Darker red
-        case "Very Poor":
-          return "#b91c1c"; // Even darker red
-        case "Severe":
-          return "#991b1b"; // Darkest red
-        default:
-          return "#6b7280"; // Gray fallback
-      }
-    };
-
     const pieData = seasonalData.seasonal.map((s) => ({
       name: s.season,
       value: parseFloat(s.avg_aqi.toFixed(2)),
       category: s.category,
-      itemStyle: { color: getCategoryColor(s.category) },
+      itemStyle: { color: getAQICategory(s.avg_aqi).color },
     }));
 
     const totalAQI = pieData.reduce((sum, item) => sum + item.value, 0);
@@ -1012,22 +977,9 @@ export default function Analytics() {
     const values = monthlyData?.monthly?.values || Array(12).fill(0);
     const categories = monthlyData?.monthly?.categories || Array(12).fill(null);
 
-    // Calming color scheme based on AQI category
-    const getCategoryColor = (category) => {
-      const colorMap = {
-        Good: "#6ee7b7",
-        Satisfactory: "#a7f3d0",
-        Moderate: "#fde68a",
-        Poor: "#fb923c",
-        "Very Poor": "#f87171",
-        Severe: "#dc2626",
-      };
-      return colorMap[category] || "#94a3b8";
-    };
-
     const chartData = values.map((val, i) => ({
       value: val ? parseFloat(val.toFixed(2)) : 0,
-      itemStyle: { color: getCategoryColor(categories[i]) },
+      itemStyle: { color: getAQICategory(val || 0).color },
     }));
 
     const maxVal = Math.max(...values.filter((v) => v !== null), 100);
@@ -1160,7 +1112,7 @@ export default function Analytics() {
         <>
           {/* Tab Navigation */}
           <div className="bg-card border border-border rounded-lg p-2">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {[
                 { id: "trends", label: "Trends", icon: <BarChart4 /> },
                 { id: "cities", label: "City Comparison", icon: <Activity /> },
@@ -1173,7 +1125,7 @@ export default function Analytics() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-all ${
+                  className={`flex-1 flex items-center justify-center px-4 py-3 rounded-lg font-medium whitespace-nowrap transition-all ${
                     activeTab === tab.id
                       ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:bg-secondary/50"

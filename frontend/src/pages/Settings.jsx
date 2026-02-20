@@ -181,8 +181,8 @@ export default function Settings() {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <Header
-        title="AQI Prediction Model Overview"
-        description="View model performance metrics and prediction accuracy"
+        title="Model Details"
+        description="Model performance metrics and prediction accuracy"
       />
 
       {/* Row 1: Model Info */}
@@ -290,22 +290,12 @@ export default function Settings() {
             Random Forest Model Details
           </h3>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
             {
               label: "Estimators",
               value: modelDetails?.numberOfTrees,
               color: "text-cyan-500",
-            },
-            {
-              label: "Min Leaf",
-              value: modelDetails?.minSamplesLeaf,
-              color: "text-foreground",
-            },
-            {
-              label: "Max Features",
-              value: modelDetails?.featuresPerSplit,
-              color: "text-foreground",
             },
             {
               label: "Random State",

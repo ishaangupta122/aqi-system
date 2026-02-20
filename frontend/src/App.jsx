@@ -1,7 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { CheckCircle, AlertCircle, Info } from "lucide-react";
+import { CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Predict from "./pages/Predict";
@@ -29,11 +29,12 @@ function App() {
             {/* <Route path="/solutions" element={<Solutions />} /> */}
             <Route path="/dataset" element={<Dataset />} />
             <Route path="/history" element={<History />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/model" element={<Settings />} />
           </Routes>
         </Layout>
         <Toaster
           position="top-right"
+          gutter={8}
           toastOptions={{
             duration: 4000,
             style: {
@@ -69,6 +70,14 @@ function App() {
                 border: "1px solid hsla(217, 91%, 60%, 0.35)",
               },
               icon: <Info className="w-5 h-5" />,
+            },
+            custom: {
+              style: {
+                background: "hsla(45, 93%, 47%, 0.2)",
+                color: "hsl(45, 93%, 47%)",
+                border: "1px solid hsla(45, 93%, 47%, 0.35)",
+              },
+              icon: <AlertTriangle className="w-5 h-5" />,
             },
           }}
         />

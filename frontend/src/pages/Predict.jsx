@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { Activity, AlertCircle, ChevronDown, Loader2 } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  ChevronDown,
+  Loader2,
+  HeartPulse,
+  Leaf,
+  Thermometer,
+  ShieldCheck,
+} from "lucide-react";
 import { api } from "../lib/api";
 import { getAQICategory } from "../lib/constants";
 import toast from "react-hot-toast";
@@ -153,21 +162,31 @@ export default function Predict() {
         <h2 className="text-xl font-medium text-foreground mb-4">
           Quick Presets
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {features?.presets.map((preset) => {
-            const presetColors = {
-              Good: "bg-green-700 hover:bg-green-800 border-green-600",
-              Moderate: "bg-amber-700 hover:bg-amber-800 border-amber-600",
-              Poor: "bg-orange-700 hover:bg-orange-800 border-orange-600",
-              "Very Poor": "bg-red-700 hover:bg-red-800 border-red-600",
-              Severe: "bg-red-900 hover:bg-red-950 border-red-800",
+            const presetStyles = {
+              Good: { bg: "#10b981", border: "#059669" },
+              Satisfactory: { bg: "#fbbf24", border: "#d97706" },
+              Moderate: { bg: "#f472b6", border: "#db2777" },
+              Poor: { bg: "#c026d3", border: "#a21caf" },
+              "Very Poor": { bg: "#f87171", border: "#ef4444" },
+              Severe: { bg: "#ef4444", border: "#dc2626" },
+            };
+            const style = presetStyles[preset.category] || {
+              bg: "#3b82f6",
+              border: "#2563eb",
             };
             return (
               <button
                 key={preset.name}
                 onClick={() => handlePreset(preset)}
-                className={`px-4 py-3 text-white rounded-lg font-medium transition-all duration-200 border ${presetColors[preset.category] || "bg-blue-700 hover:bg-blue-800 border-blue-600"}`}
-                title={preset.description}>
+                title={preset.description}
+                style={{
+                  background: `${style.bg}11`,
+                  border: `1px solid ${style.border}`,
+                  color: `${style.bg}`,
+                }}
+                className="px-4 py-3 rounded-lg font-medium transition-all duration-200 text-base hover:opacity-80">
                 {preset.name}
               </button>
             );
@@ -210,83 +229,157 @@ export default function Predict() {
 
       {/* Prediction Result */}
       {prediction && (
-        <div className="bg-card border border-border rounded-lg p-6 space-y-6">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            Prediction Breakdown
-          </h2>
-
-          {/* Prediction Breakdown Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Predicted AQI */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
-                PREDICTED
-              </p>
-              <p className={`text-3xl font-semibold ${aqiInfo.textColor}`}>
-                {prediction.aqi.toFixed(1)}
-              </p>
-            </div>
-
-            {/* Category */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
-                CATEGORY
-              </p>
-              <p className={`text-3xl font-semibold ${aqiInfo.textColor}`}>
-                {prediction.category}
-              </p>
-            </div>
-
-            {/* Season */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
-                SEASON
-              </p>
-              <p className="text-3xl font-semibold text-cyan-400">
-                {prediction.temporal_info?.season || "N/A"}
-              </p>
-            </div>
-
-            {/* Health Status */}
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-2 border-slate-700/50 rounded-lg p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">
-                HEALTH STATUS
-              </p>
-              <p
-                className={`text-3xl font-semibold ${
-                  aqiInfo.category === "Good" ||
-                  aqiInfo.category === "Satisfactory"
-                    ? "text-green-500"
-                    : aqiInfo.category === "Moderate"
-                      ? "text-amber-500"
-                      : "text-red-500"
-                }`}>
-                {aqiInfo.category === "Good" ||
-                aqiInfo.category === "Satisfactory"
-                  ? "Safe"
-                  : aqiInfo.category === "Moderate"
-                    ? "Caution"
-                    : "Unsafe"}
+        <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+          {/* Section Header */}
+          <div className="flex items-center gap-3">
+            <span className="text-3xl leading-none">{aqiInfo.emoji}</span>
+            <div>
+              <h2 className="text-xl font-bold text-foreground leading-tight">
+                Prediction Breakdown
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {aqiInfo.description}
               </p>
             </div>
           </div>
 
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {/* Predicted AQI */}
+            <div
+              className="flex items-center gap-3 rounded-xl p-4 border border-border"
+              style={{ borderLeft: `3px solid ${aqiInfo.color}` }}>
+              <div
+                className="flex-shrink-0 p-2.5 rounded-lg"
+                style={{ background: `${aqiInfo.color}22` }}>
+                <Activity
+                  className="w-5 h-5"
+                  style={{ color: aqiInfo.color }}
+                />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-0.5">
+                  AQI
+                </p>
+                <p
+                  className="text-2xl font-bold leading-none"
+                  style={{ color: aqiInfo.color }}>
+                  {prediction.aqi.toFixed(1)}
+                </p>
+              </div>
+            </div>
+
+            {/* Category */}
+            <div
+              className="flex items-center gap-3 rounded-xl p-4 border border-border"
+              style={{ borderLeft: `3px solid ${aqiInfo.color}` }}>
+              <div
+                className="flex-shrink-0 p-2.5 rounded-lg"
+                style={{ background: `${aqiInfo.color}22` }}>
+                <ShieldCheck
+                  className="w-5 h-5"
+                  style={{ color: aqiInfo.color }}
+                />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-0.5">
+                  Category
+                </p>
+                <p
+                  className="text-lg font-bold leading-none"
+                  style={{ color: aqiInfo.color }}>
+                  {prediction.category}
+                </p>
+              </div>
+            </div>
+
+            {/* Season */}
+            <div
+              className="flex items-center gap-3 rounded-xl p-4 border border-border"
+              style={{ borderLeft: "3px solid #06b6d4" }}>
+              <div
+                className="flex-shrink-0 p-2.5 rounded-lg"
+                style={{ background: "#06b6d422" }}>
+                <Leaf className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-0.5">
+                  Season
+                </p>
+                <p className="text-lg font-bold leading-none text-cyan-400">
+                  {prediction.temporal_info?.season || "N/A"}
+                </p>
+              </div>
+            </div>
+
+            {/* Health Status */}
+            {(() => {
+              const isSafe =
+                aqiInfo.category === "Good" ||
+                aqiInfo.category === "Satisfactory";
+              const isCaution = aqiInfo.category === "Moderate";
+              const statusColor = isSafe
+                ? "#10b981"
+                : isCaution
+                  ? "#f59e0b"
+                  : "#ef4444";
+              const statusLabel = isSafe
+                ? "Safe"
+                : isCaution
+                  ? "Caution"
+                  : "Unsafe";
+              return (
+                <div
+                  className="flex items-center gap-3 rounded-xl p-4 border border-border"
+                  style={{ borderLeft: `3px solid ${statusColor}` }}>
+                  <div
+                    className="flex-shrink-0 p-2.5 rounded-lg"
+                    style={{ background: `${statusColor}22` }}>
+                    <HeartPulse
+                      className="w-5 h-5"
+                      style={{ color: statusColor }}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-0.5">
+                      Health
+                    </p>
+                    <p
+                      className="text-lg font-bold leading-none"
+                      style={{ color: statusColor }}>
+                      {statusLabel}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
           {/* Health Advisory */}
           <div
-            className={`rounded-lg p-4 ${aqiInfo.bgColor} bg-opacity-20 border border-current`}>
-            <p className="text-sm font-medium mb-2 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
+            className="rounded-xl p-5 border border-border"
+            style={{
+              borderLeft: `3px solid ${aqiInfo.color}`,
+              background: `${aqiInfo.color}0d`,
+            }}>
+            <p
+              className="text-sm font-semibold mb-2 flex items-center gap-2"
+              style={{ color: aqiInfo.color }}>
+              <AlertCircle className="w-4 h-4" />
               Health Advisory
             </p>
-            <p className="text-foreground mb-3">
+            <p className="text-sm text-foreground/90 mb-3">
               {prediction.health_advisory.general}
             </p>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {prediction.health_advisory.actions.map((action, idx) => (
                 <li
                   key={idx}
-                  className="text-sm text-foreground flex items-start gap-2">
-                  <span className="text-primary mt-1">•</span>
+                  className="text-sm text-foreground/80 flex items-start gap-2">
+                  <span
+                    className="mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ background: aqiInfo.color }}
+                  />
                   <span>{action}</span>
                 </li>
               ))}
@@ -299,8 +392,62 @@ export default function Predict() {
 }
 
 function PollutantSlider({ pollutant, value, onChange }) {
-  const percentage = (value / pollutant.max) * 100;
-  const isSafe = value <= pollutant.safe_limit;
+  const safePercent = Math.min(
+    (pollutant.safe_limit / pollutant.max) * 100,
+    100,
+  );
+  const warnPercent = Math.min(
+    ((pollutant.safe_limit * 2) / pollutant.max) * 100,
+    100,
+  );
+  const currentPercent = Math.min((value / pollutant.max) * 100, 100);
+
+  // Three-zone colors
+  const COLOR_SAFE = "#10b981"; // green
+  const COLOR_WARN = "#f59e0b"; // amber
+  const COLOR_DANGER = "#ef4444"; // red
+  const COLOR_TRACK = "#374151"; // unfilled gray
+
+  // Thumb & label color mirrors the zone the current value is in
+  const thumbColor =
+    value <= pollutant.safe_limit
+      ? COLOR_SAFE
+      : value <= pollutant.safe_limit * 2
+        ? COLOR_WARN
+        : COLOR_DANGER;
+
+  // Build gradient stops: fill up to currentPercent with zone colors, rest gray
+  let stops;
+  if (currentPercent <= safePercent) {
+    stops = [
+      `${COLOR_SAFE} 0%`,
+      `${COLOR_SAFE} ${currentPercent}%`,
+      `${COLOR_TRACK} ${currentPercent}%`,
+      `${COLOR_TRACK} 100%`,
+    ];
+  } else if (currentPercent <= warnPercent) {
+    stops = [
+      `${COLOR_SAFE} 0%`,
+      `${COLOR_SAFE} ${safePercent}%`,
+      `${COLOR_WARN} ${safePercent}%`,
+      `${COLOR_WARN} ${currentPercent}%`,
+      `${COLOR_TRACK} ${currentPercent}%`,
+      `${COLOR_TRACK} 100%`,
+    ];
+  } else {
+    stops = [
+      `${COLOR_SAFE} 0%`,
+      `${COLOR_SAFE} ${safePercent}%`,
+      `${COLOR_WARN} ${safePercent}%`,
+      `${COLOR_WARN} ${warnPercent}%`,
+      `${COLOR_DANGER} ${warnPercent}%`,
+      `${COLOR_DANGER} ${currentPercent}%`,
+      `${COLOR_TRACK} ${currentPercent}%`,
+      `${COLOR_TRACK} 100%`,
+    ];
+  }
+
+  const gradient = `linear-gradient(to right, ${stops.join(", ")})`;
 
   return (
     <div className="space-y-2">
@@ -308,8 +455,7 @@ function PollutantSlider({ pollutant, value, onChange }) {
         <label className="text-sm font-medium text-foreground">
           {pollutant.name}
         </label>
-        <span
-          className={`text-sm font-bold ${isSafe ? "text-green-500" : "text-orange-500"}`}>
+        <span className="text-sm font-bold" style={{ color: thumbColor }}>
           {value.toFixed(1)} {pollutant.unit}
         </span>
       </div>
@@ -323,9 +469,10 @@ function PollutantSlider({ pollutant, value, onChange }) {
         step={pollutant.step}
         value={value}
         onChange={(e) => onChange(pollutant.key, e.target.value)}
-        className="w-full h-2 bg-secondary/50 rounded-lg appearance-none cursor-pointer accent-primary"
+        className="w-full h-2 rounded-lg appearance-none cursor-pointer"
         style={{
-          background: `linear-gradient(to right, ${isSafe ? "#10b981" : "#f59e0b"} ${percentage}%, hsl(var(--secondary)) ${percentage}%)`,
+          background: gradient,
+          accentColor: thumbColor,
         }}
       />
       <div className="flex justify-between text-xs text-muted-foreground">

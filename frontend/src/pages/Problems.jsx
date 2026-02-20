@@ -1,61 +1,57 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import ReactECharts from "echarts-for-react";
 import { api } from "../lib/api";
-import { pollutantUnits } from "../lib/constants";
+import { pollutantUnits, getAQICategory } from "../lib/constants";
 import toast from "react-hot-toast";
 import {
   AlertTriangle,
-  MapPin,
-  TrendingDown,
   Clock,
   Check,
   Lightbulb,
   HeartPulse,
   BuildingIcon,
   LucideDatabase,
+  ChevronDown,
 } from "lucide-react";
 import Header from "../components/Header";
 import { pollutantInfo } from "../data";
 
 export default function Problems() {
+  const location = useLocation();
   const [analysisResult, setAnalysisResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedPollutant, setSelectedPollutant] = useState(null);
+  const [historyList, setHistoryList] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [dataSource, setDataSource] = useState("last"); // "last" | "history"
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
 
   // Helper function to format pollutant names
   const formatPollutantName = (name) => {
     return name.replace(/_/g, ".");
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyzePrediction = async (
+    prediction,
+    label = "Last Prediction",
+  ) => {
     setLoading(true);
     try {
-      // Get from last prediction
-      const historyResponse = await api.getHistory(1);
-      const lastPrediction = historyResponse.data.predictions[0];
-
-      if (!lastPrediction) {
-        toast.error("No prediction history available");
-        setLoading(false);
-        return;
-      }
-
       const pollutantData = {
-        PM2_5: lastPrediction.pollutants.PM2_5,
-        NO: lastPrediction.pollutants.NO,
-        NO2: lastPrediction.pollutants.NO2,
-        NOx: lastPrediction.pollutants.NOx,
-        CO: lastPrediction.pollutants.CO,
-        SO2: lastPrediction.pollutants.SO2,
-        O3: lastPrediction.pollutants.O3,
-        date: lastPrediction.date || new Date().toISOString().split("T")[0],
-        city: "Last Prediction",
+        PM2_5: prediction.pollutants.PM2_5,
+        NO: prediction.pollutants.NO,
+        NO2: prediction.pollutants.NO2,
+        NOx: prediction.pollutants.NOx,
+        CO: prediction.pollutants.CO,
+        SO2: prediction.pollutants.SO2,
+        O3: prediction.pollutants.O3,
+        date: prediction.date || new Date().toISOString().split("T")[0],
+        city: label,
       };
 
-      console.log("Analyzing pollutant data:", pollutantData);
       const response = await api.analyzeProblems(pollutantData);
 
-      // Transform and sort by excess percentage (priority ranking)
       const transformedProblems = (response.data.problems || [])
         .map((problem) => ({
           pollutant: problem.pollutant,
@@ -64,26 +60,37 @@ export default function Problems() {
           severity: problem.severity,
           excess: problem.excess,
         }))
-        .sort((a, b) => b.excess - a.excess); // Sort by excess descending
+        .sort((a, b) => b.excess - a.excess);
 
       const transformedResult = {
         problem_pollutants: transformedProblems,
         problem_count: response.data.problem_count || 0,
-        city: pollutantData.city,
+        city: label,
         date: pollutantData.date,
       };
 
       setAnalysisResult(transformedResult);
 
-      // Select first pollutant if exists
       if (transformedProblems.length > 0) {
         setSelectedPollutant(transformedProblems[0]);
-        toast.error(
-          `Found ${transformedProblems.length} ${transformedProblems.length === 1 ? "pollutant" : "pollutants"} exceeding limits`,
-        );
+        toast.custom((t) => (
+          <div
+            className={`${t.visible ? "animate-enter" : "animate-leave"} flex items-center gap-2 px-4 py-3 rounded-lg`}
+            style={{
+              background: "hsla(45, 93%, 47%, 0.2)",
+              color: "hsl(45, 93%, 47%)",
+              border: "1px solid hsla(45, 93%, 47%, 0.35)",
+              backdropFilter: "blur(6px)",
+              fontSize: "14px",
+              fontWeight: "400",
+            }}>
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm">{`Found ${transformedProblems.length} ${transformedProblems.length === 1 ? "pollutant" : "pollutants"} exceeding limits`}</span>
+          </div>
+        ));
       } else {
         setSelectedPollutant(null);
-        toast.success("All pollutant levels are within safe limits! 🎉");
+        toast.success("All pollutant levels are within safe limits");
       }
     } catch (error) {
       console.error("Analysis error:", error);
@@ -95,6 +102,64 @@ export default function Problems() {
       setLoading(false);
     }
   };
+
+  const handleAnalyze = async () => {
+    if (dataSource === "last") {
+      try {
+        const historyResponse = await api.getHistory(1);
+        const lastPrediction = historyResponse.data.predictions[0];
+        if (!lastPrediction) {
+          toast.error("No prediction history available");
+          return;
+        }
+        await handleAnalyzePrediction(lastPrediction, "Last Prediction");
+      } catch (error) {
+        console.error("Analysis error:", error);
+        toast.error(
+          "Failed to fetch prediction: " +
+            (error.response?.data?.detail || error.message),
+        );
+      }
+    } else {
+      if (!selectedHistoryItem) {
+        toast.error("Please select a prediction from history");
+        return;
+      }
+      await handleAnalyzePrediction(
+        selectedHistoryItem,
+        new Date(selectedHistoryItem.timestamp).toLocaleString(),
+      );
+    }
+  };
+
+  const loadHistoryList = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await api.getHistory();
+      setHistoryList(response.data.predictions || []);
+    } catch {
+      toast.error("Failed to load history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleDataSourceChange = (source) => {
+    setDataSource(source);
+    if (source === "history" && historyList.length === 0) {
+      loadHistoryList();
+    }
+  };
+
+  useEffect(() => {
+    if (location.state?.prediction) {
+      const pred = location.state.prediction;
+      setDataSource("history");
+      setSelectedHistoryItem(pred);
+      loadHistoryList();
+      handleAnalyzePrediction(pred, new Date(pred.timestamp).toLocaleString());
+    }
+  }, []);
 
   const getPollutantGauge = (pollutant) => {
     if (!pollutant) return {};
@@ -316,30 +381,123 @@ export default function Problems() {
       />
 
       {/* Data Source Selection */}
-      <div className="bg-card border border-border rounded-lg p-6">
+      <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+        {/* Row 1: Title + Analyze button */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">
               Analyze Pollutants
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Analyze pollutant levels from the last prediction
+              Select a data source and run problem analysis
             </p>
           </div>
           <button
             onClick={handleAnalyze}
-            disabled={loading}
-            className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl">
+            disabled={
+              loading || (dataSource === "history" && !selectedHistoryItem)
+            }
+            className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl flex items-center gap-2">
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline mr-2"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Analyzing...
               </>
             ) : (
-              <>Analyze Last Prediction</>
+              <>Analyze</>
             )}
           </button>
         </div>
+
+        {/* Row 2: Data source toggle */}
+        <div className="pt-4 space-y-2">
+          <p className="text-sm text-muted-foreground font-medium">
+            Data Source
+          </p>
+          <div className="flex gap-4">
+            <button
+              onClick={() => handleDataSourceChange("last")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm transition-all shadow-lg hover:shadow-xl hover:opacity-90 ${
+                dataSource === "last"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary/50 border border-border text-foreground hover:bg-muted"
+              }`}>
+              <LucideDatabase className="w-4 h-4" />
+              Last Prediction
+            </button>
+            <button
+              onClick={() => handleDataSourceChange("history")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm transition-all shadow-lg hover:shadow-xl hover:opacity-90 ${
+                dataSource === "history"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary/50 border border-border text-foreground hover:bg-muted"
+              }`}>
+              <Clock className="w-4 h-4" />
+              Prediction History
+            </button>
+          </div>
+        </div>
+
+        {/* Row 3: History picker (only when source = history) */}
+        {dataSource === "history" && (
+          <div className="border-t border-border pt-4">
+            {loadingHistory ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                Loading history...
+              </div>
+            ) : historyList.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                No prediction history available
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {historyList.map((item, i) => {
+                  const aqiInfo = getAQICategory(item.aqi);
+                  const dateStr = new Date(item.timestamp).toLocaleString();
+                  const isSelected =
+                    selectedHistoryItem === item ||
+                    selectedHistoryItem?.timestamp === item.timestamp;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedHistoryItem(item)}
+                      className={`w-full text-left flex items-center gap-3 p-3 rounded-lg transition-all border ${
+                        isSelected
+                          ? "bg-primary/10 border-primary"
+                          : "bg-secondary/30 hover:bg-muted border-transparent hover:border-border"
+                      }`}>
+                      <div
+                        className="flex-shrink-0 w-12 h-12 flex flex-col items-center justify-center rounded-lg"
+                        style={{ background: `${aqiInfo.color}22` }}>
+                        <span
+                          className="text-base font-extrabold leading-none"
+                          style={{ color: aqiInfo.color }}>
+                          {item.aqi.toFixed(0)}
+                        </span>
+                        <span
+                          className="text-[9px] font-semibold uppercase tracking-widest"
+                          style={{ color: aqiInfo.color }}>
+                          AQI
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground">
+                          {aqiInfo.emoji} {aqiInfo.category}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {dateStr}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Results Section */}
@@ -349,11 +507,13 @@ export default function Problems() {
           <div className="bg-card border border-border rounded-lg py-5 px-10">
             <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-full bg-primary/20 flex items-center justify-center p-2">
                   <LucideDatabase className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Data Source</p>
+                  <p className="text-xs uppercase text-muted-foreground">
+                    Data Source
+                  </p>
                   <p className="text-base font-semibold text-foreground">
                     {analysisResult.city}
                   </p>
@@ -362,15 +522,17 @@ export default function Problems() {
 
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center ${analysisResult.problem_count > 0 ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                  className={`w-11 h-11 rounded-full flex items-center justify-center p-2 ${analysisResult.problem_count > 0 ? "bg-yellow-500/20" : "bg-green-500/20"}`}>
                   <AlertTriangle
-                    className={`w-8 h-8 ${analysisResult.problem_count > 0 ? "text-red-500" : "text-green-500"}`}
+                    className={`w-8 h-8 ${analysisResult.problem_count > 0 ? "text-yellow-500" : "text-green-500"}`}
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
+                  <p className="text-xs uppercase text-muted-foreground">
+                    Status
+                  </p>
                   <p
-                    className={`text-base font-semibold ${analysisResult.problem_count > 0 ? "text-red-500" : "text-green-500"}`}>
+                    className={`text-base font-semibold ${analysisResult.problem_count > 0 ? "text-yellow-500" : "text-green-500"}`}>
                     {analysisResult.problem_count}{" "}
                     {analysisResult.problem_count === 1
                       ? "pollutant"
@@ -384,7 +546,7 @@ export default function Problems() {
 
           {analysisResult.problem_pollutants.length === 0 ? (
             <div className="flex flex-col items-center bg-card border border-border rounded-lg p-12 text-center">
-              <Check className="w-12 h-12 text-green-500 mb-5" />
+              <Check className="w-11 h-11 text-green-500 mb-2" />
               <h3 className="text-xl font-medium text-green-500 mb-2">
                 All pollutant levels are within safe limits!
               </h3>
@@ -397,7 +559,6 @@ export default function Problems() {
               {/* Priority Ranking - Horizontal */}
               <div className="bg-card border border-border rounded-lg p-6">
                 <h3 className="text-xl font-medium text-foreground mb-4 flex items-center gap-2">
-                  <TrendingDown className="w-6 h-6 text-red-500" />
                   Priority Ranking
                 </h3>
                 <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">

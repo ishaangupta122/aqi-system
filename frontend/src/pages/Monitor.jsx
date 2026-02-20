@@ -3,15 +3,7 @@ import ReactECharts from "echarts-for-react";
 import { api } from "../lib/api";
 import { getAQICategory } from "../lib/constants";
 import toast from "react-hot-toast";
-import {
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
-  Calendar,
-  ChevronDown,
-  Minus,
-} from "lucide-react";
+import { Activity, TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
 
@@ -38,8 +30,9 @@ export default function Monitor() {
       setSelectedYearPollutants("all");
       setAvailableYears([]);
       loadCityStats();
-      loadAQIData();
-      loadPollutantsData();
+      // Pass "all" directly to avoid using stale state values
+      loadAQIData("all");
+      loadPollutantsData("all");
     }
   }, [selectedCity]);
 
@@ -76,10 +69,11 @@ export default function Monitor() {
     }
   };
 
-  const loadAQIData = async () => {
+  const loadAQIData = async (yearOverride = null) => {
     setLoadingAQI(true);
     try {
-      const year = selectedYearAQI === "all" ? null : parseInt(selectedYearAQI);
+      const yearToUse = yearOverride !== null ? yearOverride : selectedYearAQI;
+      const year = yearToUse === "all" ? null : parseInt(yearToUse);
       const response = await api.getCityMonitorData(selectedCity, year);
       const data = response.data;
 
@@ -121,13 +115,12 @@ export default function Monitor() {
     }
   };
 
-  const loadPollutantsData = async () => {
+  const loadPollutantsData = async (yearOverride = null) => {
     setLoadingPollutants(true);
     try {
-      const year =
-        selectedYearPollutants === "all"
-          ? null
-          : parseInt(selectedYearPollutants);
+      const yearToUse =
+        yearOverride !== null ? yearOverride : selectedYearPollutants;
+      const year = yearToUse === "all" ? null : parseInt(yearToUse);
       const response = await api.getCityMonitorData(selectedCity, year);
       const data = response.data;
 
@@ -602,12 +595,12 @@ export default function Monitor() {
       ) : (
         <>
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <StatCard
               icon={<Activity className="w-8 h-8" />}
-              label="Average AQI"
+              label="Avg AQI"
               value={currentAQI?.toFixed(2)}
-              color={avgAqiInfo.color}
+              color="#fbbf24"
               category={avgAqiInfo.category}
               showCategory={true}
             />
@@ -615,7 +608,7 @@ export default function Monitor() {
               icon={<TrendingDown className="w-8 h-8" />}
               label="Min AQI"
               value={cityStats?.min_aqi?.toFixed(2) || "N/A"}
-              color={minAqiInfo.color}
+              color="#10b981"
               category={minAqiInfo.category}
               showCategory={true}
             />
@@ -623,7 +616,7 @@ export default function Monitor() {
               icon={<TrendingUp className="w-8 h-8" />}
               label="Max AQI"
               value={cityStats?.max_aqi?.toFixed(2) || "N/A"}
-              color={maxAqiInfo.color}
+              color="#ef4444"
               category={maxAqiInfo.category}
               showCategory={true}
             />
@@ -745,24 +738,30 @@ function StatCard({
   showCategory = false,
 }) {
   return (
-    <div className="bg-card border border-border rounded-lg px-6 py-4">
-      <div className="flex items-center justify-between gap-6">
-        {/* Left: Icon and Label (stacked) */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="text-primary">{icon}</div>
-          <p className="text-muted-foreground uppercase">{label}</p>
-        </div>
-        {/* Right: Value and Category */}
-        <div className="text-right">
-          <p className="text-3xl font-bold text-foreground/90">{value}</p>
-          {showCategory && category && (
-            <p
-              className="text-xl font-semibold uppercase tracking-wide mt-1"
-              style={{ color: color }}>
-              {category}
-            </p>
-          )}
-        </div>
+    <div
+      className="bg-card border border-border rounded-lg px-5 py-3 flex items-center gap-4 transition-shadow hover:shadow-lg"
+      style={{ borderLeft: `3px solid ${color || "hsl(168,76%,42%)"}` }}>
+      {/* Icon block */}
+      <div
+        className="flex-shrink-0 self-stretch flex items-center justify-center px-6 rounded-lg"
+        style={{ background: `${color}22` }}>
+        <span style={{ color }}>{icon}</span>
+      </div>
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">
+          {label}
+        </p>
+        <p className="text-3xl font-bold text-foreground leading-none">
+          {value}
+        </p>
+        {showCategory && category && (
+          <p
+            className="text-xs font-semibold uppercase tracking-widest mt-1.5"
+            style={{ color }}>
+            {category}
+          </p>
+        )}
       </div>
     </div>
   );

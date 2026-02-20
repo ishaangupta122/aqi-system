@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { getAQICategory } from "../lib/constants";
 import toast from "react-hot-toast";
@@ -6,15 +7,13 @@ import {
   Download,
   Trash2,
   Clock,
-  MapPin,
-  Calendar,
   Filter,
   BarChart4,
-  TrendingUp,
   ArrowUp,
   ArrowDown,
+  Activity,
+  FlaskConical,
 } from "lucide-react";
-import StatCard from "../components/StatCard";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
 
@@ -115,18 +114,18 @@ export default function History() {
           description="View and manage your prediction history"
         />
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 font-medium">
           <button
             onClick={handleExport}
             disabled={history.length === 0}
-            className="px-4 py-2 bg-secondary/50 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-50 transition-colors flex items-center gap-2">
+            className="px-4 py-2 bg-blue-600 border border-border rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors flex items-center gap-2 text-white">
             <Download className="w-4 h-4" />
             Export
           </button>
           <button
             onClick={handleClearHistory}
             disabled={history.length === 0}
-            className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors flex items-center gap-2">
+            className="px-4 py-2 bg-red-700 text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors flex items-center gap-2">
             <Trash2 className="w-4 h-4" />
             Clear All
           </button>
@@ -136,41 +135,70 @@ export default function History() {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="inline-block animate-spin rounded-lg h-12 w-12 border-b-2 border-primary"></div>
             <p className="mt-4 text-muted-foreground">Loading history...</p>
           </div>
         </div>
       ) : (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard
-              icon={BarChart4}
-              title="Total Predictions"
-              value={stats.total || "0"}
-              color="text-green-500"
-            />
-
-            <StatCard
-              icon={TrendingUp}
-              title="Average AQI"
-              value={stats.avgAQI || "0"}
-              color="text-blue-500"
-            />
-
-            <StatCard
-              icon={ArrowUp}
-              title="Highest AQI"
-              value={stats.highest || "0"}
-              color="text-red-500"
-            />
-
-            <StatCard
-              icon={ArrowDown}
-              title="Lowest AQI"
-              value={stats.lowest || "0"}
-              color="text-yellow-500"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {[
+              {
+                icon: <BarChart4 className="w-7 h-7" />,
+                label: "TOTAL PREDICTIONS",
+                value: stats.total || "0",
+                color: "#10b981",
+                category: null,
+              },
+              {
+                icon: <Activity className="w-7 h-7" />,
+                label: "AVERAGE AQI",
+                value: stats.avgAQI || "0",
+                color: "#fbbf24",
+                category: getAQICategory(parseFloat(stats.avgAQI)).category,
+              },
+              {
+                icon: <ArrowDown className="w-7 h-7" />,
+                label: "LOWEST AQI",
+                value: stats.lowest || "0",
+                color: "#10b981",
+                category: getAQICategory(parseFloat(stats.lowest)).category,
+              },
+              {
+                icon: <ArrowUp className="w-7 h-7" />,
+                label: "HIGHEST AQI",
+                value: stats.highest || "0",
+                color: "#ef4444",
+                category: getAQICategory(parseFloat(stats.highest)).category,
+              },
+            ].map(({ icon, label, value, color, category }) => (
+              <div
+                key={label}
+                className="bg-card border border-border rounded-lg p-3 flex items-center gap-4 hover:shadow-lg transition-shadow"
+                style={{ borderLeft: `3px solid ${color}` }}>
+                <div
+                  className="flex-shrink-0 self-stretch flex items-center justify-center rounded-lg px-4"
+                  style={{ background: `${color}25`, color }}>
+                  {icon}
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
+                    {label}
+                  </p>
+                  <p className="text-2xl font-bold text-foreground leading-none">
+                    {value}
+                  </p>
+                  {category && (
+                    <p
+                      className="text-xs font-semibold uppercase tracking-widest mt-1.5"
+                      style={{ color }}>
+                      {category}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Filters */}
@@ -207,7 +235,7 @@ export default function History() {
                 ]}
               />
 
-              <div className="ml-auto text-sm text-muted-foreground">
+              <div className="ml-auto text-sm text-blue-400">
                 Showing {sortedHistory.length} of {history.length} predictions
               </div>
             </div>
@@ -240,60 +268,67 @@ export default function History() {
 }
 
 function HistoryCard({ item }) {
+  const navigate = useNavigate();
   const aqiInfo = getAQICategory(item.aqi);
   const date = new Date(item.timestamp);
 
   return (
-    <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
-      <div className="flex flex-col md:flex-row md:items-center gap-4">
-        {/* AQI Badge */}
-        <div className="flex-shrink-0">
-          <div
-            className={`${aqiInfo.bgColor} text-white rounded-lg p-4 text-center min-w-[100px]`}>
-            <div className="text-3xl font-bold">{item.aqi.toFixed(0)}</div>
-            <div className="text-xs font-medium mt-1">AQI</div>
-          </div>
-        </div>
+    <div className="bg-card border border-border rounded-lg p-3 flex items-center gap-4 hover:shadow-lg transition-shadow">
+      {/* AQI Block */}
+      <div
+        className="flex-shrink-0 self-stretch flex flex-col items-center justify-center rounded-lg p-5 min-w-24 max-w-24"
+        style={{ background: `${aqiInfo.color}22` }}>
+        <span
+          className="text-2xl font-extrabold leading-none"
+          style={{ color: aqiInfo.color }}>
+          {item.aqi.toFixed(0)}
+        </span>
+        <span
+          className="text-xs font-semibold uppercase tracking-widest mt-1"
+          style={{ color: aqiInfo.color }}>
+          AQI
+        </span>
+      </div>
 
-        {/* Details */}
-        <div className="flex-grow space-y-2">
+      {/* Content */}
+      <div className="flex-1 flex flex-col gap-1.5">
+        {/* Category + timestamp row */}
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{aqiInfo.emoji}</span>
-            <span className="font-bold text-lg text-foreground">
+            <span className="text-2xl leading-none">{aqiInfo.emoji}</span>
+            <span className="font-bold text-2xl text-foreground">
               {aqiInfo.category}
             </span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-            {item.city && (
-              <div className="flex items-center gap-2 text-blue-400">
-                <MapPin className="w-4 h-4" />
-                <span>{item.city}</span>
-              </div>
-            )}
-            {item.date && (
-              <div className="flex items-center gap-2 text-yellow-500">
-                <Calendar className="w-4 h-4" />
-                <span>{item.date}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-yellow-500">
-              <Clock className="w-4 h-4" />
-              <span>{date.toLocaleString()}</span>
-            </div>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={() =>
+                navigate("/problems", { state: { prediction: item } })
+              }
+              className="flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-md font-medium bg-primary/10 border border-primary/40 text-primary hover:bg-primary/20 transition-colors">
+              <FlaskConical className="w-3 h-3" />
+              Analyze
+            </button>
           </div>
+        </div>
 
+        <div className="flex gap-3 justify-between items-center flex-row-reverse">
+          <div className="flex items-center gap-1.5 text-sm text-blue-400 whitespace-nowrap">
+            <Clock className="w-3.5 h-3.5" />
+            <span>{date.toLocaleString()}</span>
+          </div>
           {/* Pollutants */}
           {item.pollutants && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-1.5">
               {Object.entries(item.pollutants)
                 .filter(([_, value]) => value > 0)
-                .slice(0, 5)
+                .slice(0, 6)
                 .map(([key, value]) => (
                   <span
                     key={key}
-                    className="px-2 py-1 bg-primary/10 border border-primary/40 text-xs rounded text-primary">
-                    {formatPollutantName(key)}: {value.toFixed(1)}
+                    className="px-2.5 py-0.5 text-xs rounded-md font-medium bg-yellow-500/10 border border-yellow-500/40 text-yellow-500">
+                    {formatPollutantName(key)}:{" "}
+                    {value % 1 === 0 ? value : value.toFixed(1)}
                   </span>
                 ))}
             </div>

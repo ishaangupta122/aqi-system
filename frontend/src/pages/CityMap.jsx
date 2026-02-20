@@ -136,8 +136,14 @@ export default function CityMap() {
   useEffect(() => {
     const q = searchQuery.trim().toLowerCase();
     if (q) {
+      const isNumeric = /^\d+$/.test(q);
       setSearchResults(
-        citiesData.filter((c) => c.name.toLowerCase().includes(q)),
+        citiesData.filter((c) => {
+          const nameMatch = c.name.toLowerCase().includes(q);
+          const aqiMatch =
+            isNumeric && String(Math.round(c.avg_aqi)).startsWith(q);
+          return nameMatch || aqiMatch;
+        }),
       );
       setShowSearchResults(true);
     } else {
@@ -200,7 +206,7 @@ export default function CityMap() {
       {/* Search Section */}
       <div className="bg-card border border-border rounded-lg p-6 w-full">
         <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Search City
+          Search by City or AQI
         </label>
         <div className="relative w-full">
           {/* Search icon */}
@@ -210,59 +216,67 @@ export default function CityMap() {
           />
           <input
             type="text"
-            placeholder="Enter City Name ..."
+            placeholder="Enter city name or AQI value..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 placeholder-[#6b7280] focus:ring-primary cursor-pointer appearance-none"
           />
-          {showSearchResults && searchResults.length > 0 && (
+          {showSearchResults && (
             <div className="absolute top-full mt-3 w-full overflow-hidden max-h-64 overflow-y-auto bg-secondary/80 border border-border rounded-lg text-foreground z-[9999]">
-              {searchResults.map((city) => {
-                const info = getAQICategory(city.avg_aqi);
-                return (
-                  <button
-                    key={city.name}
-                    onClick={() => handleCitySelect(city, mapInstance)}
-                    className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
-                    style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background =
-                        "rgba(255,255,255,0.06)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }>
-                    <div>
-                      <p
-                        className="font-semibold text-sm"
-                        style={{ color: "#f9fafb" }}>
-                        {city.name}
-                      </p>
-                      <p
-                        className="text-xs mt-0.5"
+              {searchResults.length > 0 ? (
+                searchResults.map((city) => {
+                  const info = getAQICategory(city.avg_aqi);
+                  return (
+                    <button
+                      key={city.name}
+                      onClick={() => handleCitySelect(city, mapInstance)}
+                      className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
+                      style={{
+                        borderBottom: "1px solid rgba(255,255,255,0.05)",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "rgba(255,255,255,0.06)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }>
+                      <div>
+                        <p
+                          className="font-semibold text-sm"
+                          style={{ color: "#f9fafb" }}>
+                          {city.name}
+                        </p>
+                        <p
+                          className="text-xs mt-0.5"
+                          style={{ color: info.color }}>
+                          {info.emoji} {info.category}
+                        </p>
+                      </div>
+                      <span
+                        className="text-lg font-extrabold"
                         style={{ color: info.color }}>
-                        {info.emoji} {info.category}
-                      </p>
-                    </div>
-                    <span
-                      className="text-lg font-extrabold"
-                      style={{ color: info.color }}>
-                      {Math.round(city.avg_aqi)}
-                    </span>
-                  </button>
-                );
-              })}
+                        {Math.round(city.avg_aqi)}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="px-4 py-4 text-sm text-muted-foreground text-center">
+                  No results matching &ldquo;{searchQuery.trim()}&rdquo;
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {/* Map */}
-      <div className="relative h-[90vh] border border-border rounded-xl overflow-hidden shadow-lg">
+      <div className="relative h-[65vh] border border-border rounded-lg overflow-hidden">
         {/* City Preview Card */}
         {selectedCity && (
           <div
-            className="absolute top-3 left-3 z-[1000] w-[340px] rounded-2xl shadow-2xl animate-slide-in overflow-hidden"
+            className="absolute top-3 left-3 z-[1000] w-[340px] rounded-lg shadow-2xl animate-slide-in overflow-hidden"
             style={{
               background: "#0d1117",
               border: "1px solid rgba(255,255,255,0.08)",
@@ -289,12 +303,11 @@ export default function CityMap() {
               </button>
             </div>
 
-            <div className="px-5 pb-5 pt-4 space-y-4 max-h-[calc(90vh-130px)] overflow-y-auto [&::-webkit-scrollbar]:hidden">
+            <div className="px-5 pb-5 pt-4 space-y-4 max-h-[calc(65vh-130px)] overflow-y-auto [&::-webkit-scrollbar]:hidden">
               {/* City name */}
               <div className="flex items-start gap-2.5">
                 <MapPin
-                  size={20}
-                  className="mt-0.5 flex-shrink-0"
+                  className="h-8 w-8 mt-0.5 flex-shrink-0"
                   style={{ color: "hsl(168,76%,42%)" }}
                 />
                 <div>
@@ -312,7 +325,7 @@ export default function CityMap() {
                 const cat = getAQICategory(selectedCity.avg_aqi);
                 return (
                   <div
-                    className="rounded-xl p-4"
+                    className="rounded-lg p-4"
                     style={{
                       background: "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(255,255,255,0.07)",
@@ -380,7 +393,7 @@ export default function CityMap() {
                     return (
                       <div
                         key={key}
-                        className="rounded-xl px-4 py-3"
+                        className="rounded-lg px-4 py-3"
                         style={{
                           background: "rgba(255,255,255,0.04)",
                           border: "1px solid rgba(255,255,255,0.06)",
@@ -424,7 +437,7 @@ export default function CityMap() {
                   return (
                     <div
                       key={label}
-                      className="rounded-xl p-3"
+                      className="rounded-lg p-3"
                       style={{
                         background: "rgba(255,255,255,0.04)",
                         border: "1px solid rgba(255,255,255,0.06)",
@@ -491,12 +504,12 @@ export default function CityMap() {
                     width: 46px;
                     height: 46px;
                   ">
-                    <!-- Subtle outer ring -->
-                    <div style="
-                      position: absolute; inset: -3px;
+                    <!-- Pulsing outer ring -->
+                    <div class="aqi-ring-pulse" style="
+                      position: absolute; inset: -5px;
                       border-radius: 50%;
-                      background: ${info.color}28;
-                      border: 1.5px solid ${info.color}55;
+                      background: ${info.color}40;
+                      border: 2px solid ${info.color};
                     "></div>
                     <!-- Main circle -->
                     <div style="

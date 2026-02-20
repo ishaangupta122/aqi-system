@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Header from "../components/Header";
 import { api } from "../lib/api";
 import toast from "react-hot-toast";
@@ -7,10 +7,11 @@ import {
   Table,
   AlertTriangle,
   FileType,
-  BarChart3,
   ChevronDown,
   ChevronUp,
   Loader2,
+  Columns3,
+  BarChart4,
 } from "lucide-react";
 
 export default function Dataset() {
@@ -105,11 +106,11 @@ export default function Dataset() {
       />
 
       {/* Dataset Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Dataset Shape */}
-        <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+        <div className="bg-card border border-border rounded-lg p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-md bg-secondary/50 text-blue-500">
+            <div className="p-3 rounded-md bg-primary/15 text-primary">
               <Database className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">
@@ -139,9 +140,9 @@ export default function Dataset() {
         </div>
 
         {/* Missing Values */}
-        <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+        <div className="bg-card border border-border rounded-lg p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-md bg-secondary/50 text-yellow-500">
+            <div className="p-3 rounded-md bg-yellow-500/15 text-yellow-500">
               <AlertTriangle className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">
@@ -174,9 +175,9 @@ export default function Dataset() {
         </div>
 
         {/* Data Types */}
-        <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+        <div className="bg-card border border-border rounded-lg p-4 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-md bg-secondary/50 text-green-500">
+            <div className="p-3 rounded-md bg-green-500/15 text-green-500">
               <FileType className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">
@@ -327,7 +328,7 @@ export default function Dataset() {
           onClick={() => toggleSection("columns")}
           className="w-full px-6 py-4 flex items-center justify-between hover:bg-secondary/50 transition-colors">
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-5 h-5 text-primary" />
+            <Columns3 className="w-5 h-5 text-primary" />
             <h3 className="text-xl font-semibold text-foreground">
               Column Details
             </h3>
@@ -358,17 +359,17 @@ export default function Dataset() {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       Unit
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                      Used
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                      Importance
-                    </th>
                     <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       Non-Null
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       Null
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      Used
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      Importance
                     </th>
                   </tr>
                 </thead>
@@ -423,14 +424,6 @@ export default function Dataset() {
                           <td className="px-6 py-4 text-left text-muted-foreground whitespace-nowrap">
                             {col.unit || "-"}
                           </td>
-                          <td className="px-6 py-4 text-center whitespace-nowrap">
-                            <span
-                              className={`inline-block w-2 h-2 rounded-full ${col.used ? "bg-green-500" : "bg-red-500"}`}></span>
-                          </td>
-                          <td
-                            className={`px-6 py-4 text-right whitespace-nowrap ${importanceColor}`}>
-                            {col.importance > 0 ? `${col.importance}%` : "-"}
-                          </td>
                           <td className="px-6 py-4 text-right text-green-500 font-semibold whitespace-nowrap">
                             {col.nonNull.toLocaleString()}
                           </td>
@@ -444,6 +437,14 @@ export default function Dataset() {
                                 {col.null.toLocaleString()}
                               </span>
                             )}
+                          </td>
+                          <td className="px-6 py-4 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block w-2 h-2 rounded-full ${col.used ? "bg-green-500" : "bg-red-500"}`}></span>
+                          </td>
+                          <td
+                            className={`px-6 py-4 text-right whitespace-nowrap ${importanceColor}`}>
+                            {col.importance > 0 ? `${col.importance}%` : "-"}
                           </td>
                         </tr>
                       );
@@ -465,7 +466,7 @@ export default function Dataset() {
           onClick={() => toggleSection("statistics")}
           className="w-full px-6 py-4 flex items-center justify-between hover:bg-secondary/50/50 transition-colors">
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-5 h-5 text-primary" />
+            <BarChart4 className="w-5 h-5 text-primary" />
             <h3 className="text-xl font-semibold text-foreground">
               Statistical Summary
             </h3>
@@ -486,7 +487,7 @@ export default function Dataset() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       #
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 bg-secondary/50 whitespace-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky left-0 whitespace-nowrap">
                       Column
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
