@@ -6,10 +6,13 @@ import { Activity, Calendar, BarChart4 } from "lucide-react";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
 import { months, getAQICategory } from "../lib/constants";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 export default function Analytics() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorAnalytics, setErrorAnalytics] = useState(false);
   const [activeTab, setActiveTab] = useState("trends");
 
   const [trendFilter, setTrendFilter] = useState("all_time");
@@ -240,6 +243,7 @@ export default function Analytics() {
     } catch (error) {
       toast.error("Failed to load analytics");
       console.error("Analytics error:", error);
+      setErrorAnalytics(true);
     } finally {
       setLoading(false);
     }
@@ -1102,12 +1106,16 @@ export default function Analytics() {
       />
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="mt-4 text-muted-foreground">Loading analytics...</p>
-          </div>
-        </div>
+        <LoadingState message="Loading analytics..." />
+      ) : errorAnalytics ? (
+        <ErrorState
+          message="Failed to load analytics"
+          onRetry={() => {
+            setErrorAnalytics(false);
+            setLoading(true);
+            loadAnalytics();
+          }}
+        />
       ) : (
         <>
           {/* Tab Navigation */}

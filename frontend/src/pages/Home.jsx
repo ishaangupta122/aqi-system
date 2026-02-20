@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import StatCard from "../components/StatCard";
 import FeatureCard from "../components/FeatureCard";
 import Header from "../components/Header";
+import LoadingState from "../components/LoadingState";
 
 export default function Home() {
   const [stats, setStats] = useState(null);
@@ -55,36 +56,40 @@ export default function Home() {
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard
-          icon={Activity}
-          title="Dataset Records"
-          value={loading ? "..." : stats?.totalRecords?.toLocaleString() || "0"}
-          color="text-blue-500"
-        />
-        <StatCard
-          icon={TrendingUp}
-          title="AQI Range"
-          value={
-            loading
-              ? "..."
-              : `${stats?.minAQI?.toFixed(0) || "0"} - ${stats?.maxAQI?.toFixed(0) || "0"}`
-          }
-          color="text-green-500"
-        />
-        <StatCard
-          icon={MapPin}
-          title="Cities Monitored"
-          value={loading ? "..." : stats?.cities || "0"}
-          color="text-orange-500"
-        />
-        <StatCard
-          icon={History}
-          title="Total Predictions"
-          value={loading ? "..." : stats?.predictions || "0"}
-          color="text-purple-500"
-        />
-      </div>
+      {loading ? (
+        <LoadingState message="Loading statistics..." />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <StatCard
+            icon={Activity}
+            title="Dataset Records"
+            value={stats?.totalRecords?.toLocaleString() || "N/A"}
+            color="text-blue-500"
+          />
+          <StatCard
+            icon={TrendingUp}
+            title="AQI Range"
+            value={
+              stats
+                ? `${stats.minAQI?.toFixed(0) || "0"} - ${stats.maxAQI?.toFixed(0) || "0"}`
+                : "N/A"
+            }
+            color="text-green-500"
+          />
+          <StatCard
+            icon={MapPin}
+            title="Cities Monitored"
+            value={stats?.cities || "N/A"}
+            color="text-orange-500"
+          />
+          <StatCard
+            icon={History}
+            title="Total Predictions"
+            value={stats?.predictions ?? "N/A"}
+            color="text-purple-500"
+          />
+        </div>
+      )}
 
       {/* AQI Categories Table */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">

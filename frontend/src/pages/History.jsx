@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 // Helper function to format pollutant names
 const formatPollutantName = (name) => {
@@ -25,6 +27,7 @@ const formatPollutantName = (name) => {
 export default function History() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
@@ -38,6 +41,7 @@ export default function History() {
       setHistory(response.data.predictions || []);
     } catch (error) {
       toast.error("Failed to load history");
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -133,12 +137,16 @@ export default function History() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-lg h-12 w-12 border-b-2 border-primary"></div>
-            <p className="mt-4 text-muted-foreground">Loading history...</p>
-          </div>
-        </div>
+        <LoadingState message="Loading history..." />
+      ) : error ? (
+        <ErrorState
+          message="Failed to load prediction history"
+          onRetry={() => {
+            setError(false);
+            setLoading(true);
+            loadHistory();
+          }}
+        />
       ) : (
         <>
           {/* Stats */}

@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 import { Activity, TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
 import Header from "../components/Header";
 import FilterDropdown from "../components/FilterDropdown";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 export default function Monitor() {
   const [cities, setCities] = useState([]);
@@ -16,6 +18,8 @@ export default function Monitor() {
   const [aqiData, setAqiData] = useState(null);
   const [pollutantsData, setPollutantsData] = useState(null);
   const [cityStats, setCityStats] = useState(null);
+  const [loadingCities, setLoadingCities] = useState(true);
+  const [errorCities, setErrorCities] = useState(false);
   const [loadingAQI, setLoadingAQI] = useState(false);
   const [loadingPollutants, setLoadingPollutants] = useState(false);
 
@@ -57,6 +61,9 @@ export default function Monitor() {
       }
     } catch (error) {
       toast.error("Failed to load cities");
+      setErrorCities(true);
+    } finally {
+      setLoadingCities(false);
     }
   };
 
@@ -559,6 +566,37 @@ export default function Monitor() {
 
   const stdDevInfo = getStdDevInfo(stdDev);
   const dataPointsInfo = getDataPointsInfo(dataPoints);
+
+  if (loadingCities) {
+    return (
+      <div className="space-y-6">
+        <Header
+          title="Monitor Cities"
+          description="Track AQI trends and pollutant levels over time for selected cities"
+        />
+        <LoadingState message="Loading cities..." />
+      </div>
+    );
+  }
+
+  if (errorCities) {
+    return (
+      <div className="space-y-6">
+        <Header
+          title="Monitor Cities"
+          description="Track AQI trends and pollutant levels over time for selected cities"
+        />
+        <ErrorState
+          message="Failed to load cities"
+          onRetry={() => {
+            setErrorCities(false);
+            setLoadingCities(true);
+            loadCities();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

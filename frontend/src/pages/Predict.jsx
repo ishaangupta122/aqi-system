@@ -3,7 +3,6 @@ import {
   Activity,
   AlertCircle,
   ChevronDown,
-  Loader2,
   HeartPulse,
   Leaf,
   Thermometer,
@@ -13,6 +12,8 @@ import { api } from "../lib/api";
 import { getAQICategory } from "../lib/constants";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 export default function Predict() {
   const [features, setFeatures] = useState(null);
@@ -22,6 +23,7 @@ export default function Predict() {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingFeatures, setLoadingFeatures] = useState(true);
+  const [errorFeatures, setErrorFeatures] = useState(false);
 
   useEffect(() => {
     loadFeatures();
@@ -42,6 +44,7 @@ export default function Predict() {
     } catch (error) {
       toast.error("Failed to load features");
       console.error(error);
+      setErrorFeatures(true);
     } finally {
       setLoadingFeatures(false);
     }
@@ -91,13 +94,31 @@ export default function Predict() {
 
   if (loadingFeatures) {
     return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            Loading prediction features...
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Real-Time AQI Prediction"
+          description="Input pollutant levels and get instant air quality predictions"
+        />
+        <LoadingState message="Loading prediction features..." />
+      </div>
+    );
+  }
+
+  if (errorFeatures) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Real-Time AQI Prediction"
+          description="Input pollutant levels and get instant air quality predictions"
+        />
+        <ErrorState
+          message="Failed to load prediction features"
+          onRetry={() => {
+            setErrorFeatures(false);
+            setLoadingFeatures(true);
+            loadFeatures();
+          }}
+        />
       </div>
     );
   }

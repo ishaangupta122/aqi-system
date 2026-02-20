@@ -87,7 +87,7 @@ export default function Layout({ children }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-border space-y-3">
+        <div className="p-4 border-t border-border space-y-1">
           {/* API Status */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -185,7 +185,7 @@ export default function Layout({ children }) {
           </nav>
 
           {/* Status footer */}
-          <div className="p-4 border-t border-border space-y-3">
+          <div className="p-4 border-t border-border space-y-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Radio className="w-3.5 h-3.5 text-muted-foreground" />

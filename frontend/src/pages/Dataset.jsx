@@ -5,14 +5,15 @@ import toast from "react-hot-toast";
 import {
   Database,
   Table,
-  AlertTriangle,
   FileType,
   ChevronDown,
   ChevronUp,
-  Loader2,
   Columns3,
   BarChart4,
+  AlertTriangle,
 } from "lucide-react";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 export default function Dataset() {
   const [datasetInfo, setDatasetInfo] = useState(null);
@@ -73,26 +74,27 @@ export default function Dataset() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">
-            Loading dataset information...
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Dataset Information"
+          description="Comprehensive view of AQI dataset statistics and properties"
+        />
+        <LoadingState message="Loading dataset information..." />
       </div>
     );
   }
 
   if (!datasetInfo) {
     return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
-          <p className="text-muted-foreground">
-            Failed to load dataset information
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Dataset Information"
+          description="Comprehensive view of AQI dataset statistics and properties"
+        />
+        <ErrorState
+          message="Failed to load dataset information"
+          onRetry={() => loadDatasetInfo()}
+        />
       </div>
     );
   }

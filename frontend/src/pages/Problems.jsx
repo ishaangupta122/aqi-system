@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Header from "../components/Header";
 import { pollutantInfo } from "../data";
+import LoadingState from "../components/LoadingState";
 
 export default function Problems() {
   const location = useLocation();
@@ -442,9 +443,7 @@ export default function Problems() {
         {dataSource === "history" && (
           <div className="border-t border-border pt-4">
             {loadingHistory ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">
-                Loading history...
-              </div>
+              <LoadingState message="Loading prediction history..." />
             ) : historyList.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground text-sm">
                 No prediction history available

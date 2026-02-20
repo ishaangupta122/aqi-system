@@ -22,6 +22,8 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Header from "../components/Header";
 import { cityCoordinates } from "../lib/constants";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -114,6 +116,7 @@ function MapNavigator({ onMapReady }) {
 export default function CityMap() {
   const [citiesData, setCitiesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMap, setErrorMap] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
   const [pollutants, setPollutants] = useState(null);
   const [loadingPollutants, setLoadingPollutants] = useState(false);
@@ -171,6 +174,7 @@ export default function CityMap() {
       setCitiesData(results.filter(Boolean));
     } catch {
       toast.error("Failed to load city data");
+      setErrorMap(true);
     } finally {
       setLoading(false);
     }
@@ -203,302 +207,309 @@ export default function CityMap() {
         title="City Map"
         description="Explore air quality across major cities in India"
       />
-      {/* Search Section */}
-      <div className="bg-card border border-border rounded-lg p-6 w-full">
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          Search by City or AQI
-        </label>
-        <div className="relative w-full">
-          {/* Search icon */}
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none h-5 w-5"
-            color="#6b7280"
-          />
-          <input
-            type="text"
-            placeholder="Enter city name or AQI value..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 placeholder-[#6b7280] focus:ring-primary cursor-pointer appearance-none"
-          />
-          {showSearchResults && (
-            <div className="absolute top-full mt-3 w-full overflow-hidden max-h-64 overflow-y-auto bg-secondary/80 border border-border rounded-lg text-foreground z-[9999]">
-              {searchResults.length > 0 ? (
-                searchResults.map((city) => {
-                  const info = getAQICategory(city.avg_aqi);
-                  return (
-                    <button
-                      key={city.name}
-                      onClick={() => handleCitySelect(city, mapInstance)}
-                      className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
-                      style={{
-                        borderBottom: "1px solid rgba(255,255,255,0.05)",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(255,255,255,0.06)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }>
-                      <div>
-                        <p
-                          className="font-semibold text-sm"
-                          style={{ color: "#f9fafb" }}>
-                          {city.name}
-                        </p>
-                        <p
-                          className="text-xs mt-0.5"
-                          style={{ color: info.color }}>
-                          {info.emoji} {info.category}
-                        </p>
-                      </div>
-                      <span
-                        className="text-lg font-extrabold"
-                        style={{ color: info.color }}>
-                        {Math.round(city.avg_aqi)}
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="px-4 py-4 text-sm text-muted-foreground text-center">
-                  No results matching &ldquo;{searchQuery.trim()}&rdquo;
+      {/* Map */}
+      {loading ? (
+        <LoadingState message="Loading map data…" />
+      ) : errorMap ? (
+        <ErrorState
+          message="Failed to load city data"
+          onRetry={() => {
+            setErrorMap(false);
+            setLoading(true);
+            loadCitiesData();
+          }}
+        />
+      ) : (
+        <>
+          {/* Search Section */}
+          <div className="bg-card border border-border rounded-lg p-6 w-full">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
+              Search by City or AQI
+            </label>
+            <div className="relative w-full">
+              {/* Search icon */}
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none h-5 w-5"
+                color="#6b7280"
+              />
+              <input
+                type="text"
+                placeholder="Enter city name or AQI value..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 placeholder-[#6b7280] focus:ring-primary cursor-pointer appearance-none"
+              />
+              {showSearchResults && (
+                <div className="absolute top-full mt-3 w-full overflow-hidden max-h-64 overflow-y-auto bg-secondary/80 border border-border rounded-lg text-foreground z-[9999]">
+                  {searchResults.length > 0 ? (
+                    searchResults.map((city) => {
+                      const info = getAQICategory(city.avg_aqi);
+                      return (
+                        <button
+                          key={city.name}
+                          onClick={() => handleCitySelect(city, mapInstance)}
+                          className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
+                          style={{
+                            borderBottom: "1px solid rgba(255,255,255,0.05)",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background =
+                              "rgba(255,255,255,0.06)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "transparent")
+                          }>
+                          <div>
+                            <p
+                              className="font-semibold text-sm"
+                              style={{ color: "#f9fafb" }}>
+                              {city.name}
+                            </p>
+                            <p
+                              className="text-xs mt-0.5"
+                              style={{ color: info.color }}>
+                              {info.emoji} {info.category}
+                            </p>
+                          </div>
+                          <span
+                            className="text-lg font-extrabold"
+                            style={{ color: info.color }}>
+                            {Math.round(city.avg_aqi)}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-4 text-sm text-muted-foreground text-center">
+                      No results matching &ldquo;{searchQuery.trim()}&rdquo;
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Map */}
-      <div className="relative h-[65vh] border border-border rounded-lg overflow-hidden">
-        {/* City Preview Card */}
-        {selectedCity && (
-          <div
-            className="absolute top-3 left-3 z-[1000] w-[340px] rounded-lg shadow-2xl animate-slide-in overflow-hidden"
-            style={{
-              background: "#0d1117",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}>
-            {/* Header bar */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
-              <span className="text-sm font-semibold text-white/80 tracking-wide">
-                Air Quality Map
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedCity(null);
-                  setPollutants(null);
-                }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
-                style={{ background: "rgba(255,255,255,0.07)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "rgba(255,255,255,0.13)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "rgba(255,255,255,0.07)")
-                }>
-                <X size={14} color="white" />
-              </button>
-            </div>
-
-            <div className="px-5 pb-5 pt-4 space-y-4 max-h-[calc(65vh-130px)] overflow-y-auto [&::-webkit-scrollbar]:hidden">
-              {/* City name */}
-              <div className="flex items-start gap-2.5">
-                <MapPin
-                  className="h-8 w-8 mt-0.5 flex-shrink-0"
-                  style={{ color: "hsl(168,76%,42%)" }}
-                />
-                <div>
-                  <p
-                    className="text-2xl font-bold leading-tight"
-                    style={{ color: "hsl(168,76%,42%)" }}>
-                    {selectedCity.name}
-                  </p>
-                  <p className="text-sm text-white/40 mt-0.5">India</p>
+          </div>
+          <div className="relative h-[65vh] border border-border rounded-lg overflow-hidden">
+            {/* City Preview Card */}
+            {selectedCity && (
+              <div
+                className="absolute top-3 left-3 z-[1000] w-[340px] rounded-lg shadow-2xl animate-slide-in overflow-hidden"
+                style={{
+                  background: "#0d1117",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}>
+                {/* Header bar */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
+                  <span className="text-sm font-semibold text-white/80 tracking-wide">
+                    Air Quality Map
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSelectedCity(null);
+                      setPollutants(null);
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+                    style={{ background: "rgba(255,255,255,0.07)" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background =
+                        "rgba(255,255,255,0.13)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background =
+                        "rgba(255,255,255,0.07)")
+                    }>
+                    <X size={14} color="white" />
+                  </button>
                 </div>
-              </div>
 
-              {/* AQI Card */}
-              {(() => {
-                const cat = getAQICategory(selectedCity.avg_aqi);
-                return (
-                  <div
-                    className="rounded-lg p-4"
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                    }}>
-                    <div className="flex items-center gap-1.5 text-white/40 text-xs mb-3">
-                      <Activity size={12} />
-                      <span>Air Quality Index</span>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p
-                          className="text-6xl font-extrabold leading-none mb-2"
-                          style={{ color: cat.color }}>
-                          {Math.round(selectedCity.avg_aqi)}
-                        </p>
-                        <span
-                          className="inline-block px-3 py-1 rounded-full text-xs font-bold"
-                          style={{
-                            background: cat.color,
-                            color: selectedCity.avg_aqi > 100 ? "#fff" : "#000",
-                          }}>
-                          {cat.category}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: 44, lineHeight: 1 }}>
-                        {cat.emoji}
-                      </span>
-                    </div>
-                    {/* AQI range bar */}
-                    <div className="mt-4">
-                      <div
-                        className="h-1.5 rounded-full overflow-hidden"
-                        style={{ background: "rgba(255,255,255,0.1)" }}>
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${Math.min((selectedCity.avg_aqi / 500) * 100, 100)}%`,
-                            background: `linear-gradient(to right, ${cat.color}88, ${cat.color})`,
-                          }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-white/25 mt-1">
-                        <span>0</span>
-                        <span>Good</span>
-                        <span>Moderate</span>
-                        <span>500+</span>
-                      </div>
+                <div className="px-5 pb-5 pt-4 space-y-4 max-h-[calc(65vh-130px)] overflow-y-auto [&::-webkit-scrollbar]:hidden">
+                  {/* City name */}
+                  <div className="flex items-start gap-2.5">
+                    <MapPin
+                      className="h-8 w-8 mt-0.5 flex-shrink-0"
+                      style={{ color: "hsl(168,76%,42%)" }}
+                    />
+                    <div>
+                      <p
+                        className="text-2xl font-bold leading-tight"
+                        style={{ color: "hsl(168,76%,42%)" }}>
+                        {selectedCity.name}
+                      </p>
+                      <p className="text-sm text-white/40 mt-0.5">India</p>
                     </div>
                   </div>
-                );
-              })()}
 
-              {/* Pollutant Bars */}
-              {loadingPollutants ? (
-                <div className="flex items-center justify-center py-4 gap-2 text-white/40 text-sm">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                  Loading pollutants…
-                </div>
-              ) : pollutants ? (
-                <div className="space-y-2">
-                  {POLLUTANTS.map(({ key, label, unit, color, max }) => {
-                    const val = pollutants[key];
-                    if (val == null) return null;
-                    const pct = Math.min((val / max) * 100, 100);
+                  {/* AQI Card */}
+                  {(() => {
+                    const cat = getAQICategory(selectedCity.avg_aqi);
                     return (
                       <div
-                        key={key}
-                        className="rounded-lg px-4 py-3"
+                        className="rounded-lg p-4"
                         style={{
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.06)",
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.07)",
                         }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-white/80 flex items-center gap-1.5">
-                            {label}
-                            <TrendingUp size={11} className="opacity-50" />
-                          </span>
-                          <span className="text-sm font-bold text-white">
-                            {val.toFixed(1)}&nbsp;
-                            <span className="text-[11px] font-normal text-white/40">
-                              {unit}
+                        <div className="flex items-center gap-1.5 text-white/40 text-xs mb-3">
+                          <Activity size={12} />
+                          <span>Air Quality Index</span>
+                        </div>
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <p
+                              className="text-6xl font-extrabold leading-none mb-2"
+                              style={{ color: cat.color }}>
+                              {Math.round(selectedCity.avg_aqi)}
+                            </p>
+                            <span
+                              className="inline-block px-3 py-1 rounded-full text-xs font-bold"
+                              style={{
+                                background: cat.color,
+                                color:
+                                  selectedCity.avg_aqi > 100 ? "#fff" : "#000",
+                              }}>
+                              {cat.category}
                             </span>
+                          </div>
+                          <span style={{ fontSize: 44, lineHeight: 1 }}>
+                            {cat.emoji}
                           </span>
                         </div>
-                        <div
-                          className="h-1.5 rounded-full overflow-hidden"
-                          style={{ background: "rgba(255,255,255,0.08)" }}>
+                        {/* AQI range bar */}
+                        <div className="mt-4">
                           <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${pct}%`,
-                              background: `linear-gradient(to right, ${color}88, ${color})`,
-                            }}
-                          />
+                            className="h-1.5 rounded-full overflow-hidden"
+                            style={{ background: "rgba(255,255,255,0.1)" }}>
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${Math.min((selectedCity.avg_aqi / 500) * 100, 100)}%`,
+                                background: `linear-gradient(to right, ${cat.color}88, ${cat.color})`,
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-white/25 mt-1">
+                            <span>0</span>
+                            <span>Good</span>
+                            <span>Moderate</span>
+                            <span>500+</span>
+                          </div>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              ) : null}
+                  })()}
 
-              {/* Min / Max stats */}
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: "Max AQI", value: selectedCity.max_aqi },
-                  { label: "Min AQI", value: selectedCity.min_aqi },
-                ].map(({ label, value }) => {
-                  const cat = getAQICategory(value);
-                  return (
-                    <div
-                      key={label}
-                      className="rounded-lg p-3"
-                      style={{
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}>
-                      <p className="text-[11px] text-white/35 mb-1">{label}</p>
-                      <p
-                        className="text-xl font-bold"
-                        style={{ color: cat.color }}>
-                        {Math.round(value)}
-                      </p>
-                      <p
-                        className="text-[11px] mt-0.5"
-                        style={{ color: cat.color + "99" }}>
-                        {cat.category}
-                      </p>
+                  {/* Pollutant Bars */}
+                  {loadingPollutants ? (
+                    <div className="flex items-center justify-center py-4 gap-2 text-white/40 text-sm">
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                      Loading pollutants…
                     </div>
-                  );
-                })}
+                  ) : pollutants ? (
+                    <div className="space-y-2">
+                      {POLLUTANTS.map(({ key, label, unit, color, max }) => {
+                        const val = pollutants[key];
+                        if (val == null) return null;
+                        const pct = Math.min((val / max) * 100, 100);
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-lg px-4 py-3"
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.06)",
+                            }}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-semibold text-white/80 flex items-center gap-1.5">
+                                {label}
+                                <TrendingUp size={11} className="opacity-50" />
+                              </span>
+                              <span className="text-sm font-bold text-white">
+                                {val.toFixed(1)}&nbsp;
+                                <span className="text-[11px] font-normal text-white/40">
+                                  {unit}
+                                </span>
+                              </span>
+                            </div>
+                            <div
+                              className="h-1.5 rounded-full overflow-hidden"
+                              style={{ background: "rgba(255,255,255,0.08)" }}>
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${pct}%`,
+                                  background: `linear-gradient(to right, ${color}88, ${color})`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  {/* Min / Max stats */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Max AQI", value: selectedCity.max_aqi },
+                      { label: "Min AQI", value: selectedCity.min_aqi },
+                    ].map(({ label, value }) => {
+                      const cat = getAQICategory(value);
+                      return (
+                        <div
+                          key={label}
+                          className="rounded-lg p-3"
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                          }}>
+                          <p className="text-[11px] text-white/35 mb-1">
+                            {label}
+                          </p>
+                          <p
+                            className="text-xl font-bold"
+                            style={{ color: cat.color }}>
+                            {Math.round(value)}
+                          </p>
+                          <p
+                            className="text-[11px] mt-0.5"
+                            style={{ color: cat.color + "99" }}>
+                            {cat.category}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {loading ? (
-          <div className="h-full flex items-center justify-center bg-background">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-              <p className="mt-4 text-muted-foreground text-sm">
-                Loading map data…
-              </p>
-            </div>
-          </div>
-        ) : (
-          <MapContainer
-            center={[20.5937, 78.9629]}
-            zoom={5}
-            minZoom={4}
-            maxZoom={12}
-            maxBounds={[
-              [6, 65],
-              [37, 100],
-            ]}
-            maxBoundsViscosity={1.0}
-            zoomControl={false}
-            style={{ height: "100%", width: "100%" }}>
-            <TileLayer url={TILE_LAYERS[mapStyle]} />
-            <ScaleControl position="bottomleft" imperial={false} />
-            <MapControls mapStyle={mapStyle} setMapStyle={setMapStyle} />
-            <MapNavigator onMapReady={setMapInstance} />
+            <MapContainer
+              center={[20.5937, 78.9629]}
+              zoom={5}
+              minZoom={4}
+              maxZoom={12}
+              maxBounds={[
+                [6, 65],
+                [37, 100],
+              ]}
+              maxBoundsViscosity={1.0}
+              zoomControl={false}
+              style={{ height: "100%", width: "100%" }}>
+              <TileLayer url={TILE_LAYERS[mapStyle]} />
+              <ScaleControl position="bottomleft" imperial={false} />
+              <MapControls mapStyle={mapStyle} setMapStyle={setMapStyle} />
+              <MapNavigator onMapReady={setMapInstance} />
 
-            {citiesData.map((city) => {
-              const aqi = Math.round(city.avg_aqi);
-              const info = getAQICategory(aqi);
-              const textColor =
-                info.category === "Good" || info.category === "Satisfactory"
-                  ? "#1a1a1a"
-                  : "#ffffff";
+              {citiesData.map((city) => {
+                const aqi = Math.round(city.avg_aqi);
+                const info = getAQICategory(aqi);
+                const textColor =
+                  info.category === "Good" || info.category === "Satisfactory"
+                    ? "#1a1a1a"
+                    : "#ffffff";
 
-              const icon = L.divIcon({
-                className: "",
-                html: `
+                const icon = L.divIcon({
+                  className: "",
+                  html: `
                   <div style="
                     position: relative;
                     width: 46px;
@@ -529,24 +540,25 @@ export default function CityMap() {
                     ">${aqi}</div>
                   </div>
                 `,
-                iconSize: [46, 46],
-                iconAnchor: [23, 23],
-              });
+                  iconSize: [46, 46],
+                  iconAnchor: [23, 23],
+                });
 
-              return (
-                <Marker
-                  key={city.name}
-                  position={city.coordinates}
-                  icon={icon}
-                  eventHandlers={{
-                    click: () => handleCitySelect(city, mapInstance),
-                  }}
-                />
-              );
-            })}
-          </MapContainer>
-        )}
-      </div>
+                return (
+                  <Marker
+                    key={city.name}
+                    position={city.coordinates}
+                    icon={icon}
+                    eventHandlers={{
+                      click: () => handleCitySelect(city, mapInstance),
+                    }}
+                  />
+                );
+              })}
+            </MapContainer>
+          </div>
+        </>
+      )}
     </div>
   );
 }

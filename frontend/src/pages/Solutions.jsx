@@ -17,10 +17,13 @@ import {
 } from "lucide-react";
 import Header from "../components/Header";
 import { policyData } from "../data";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 export default function Solutions() {
   const [scenarios, setScenarios] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState("moderate");
   const [activeTab, setActiveTab] = useState("interventions");
   const [expandedPolicy, setExpandedPolicy] = useState(
@@ -93,6 +96,7 @@ export default function Solutions() {
     } catch (error) {
       console.error("Solutions error:", error);
       toast.error("Failed to load solution scenarios");
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -216,6 +220,37 @@ export default function Solutions() {
       ],
     };
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Solutions & Planning"
+          description="Explore intervention scenarios, policy recommendations, and action plans"
+        />
+        <LoadingState message="Loading solution scenarios..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Solutions & Planning"
+          description="Explore intervention scenarios, policy recommendations, and action plans"
+        />
+        <ErrorState
+          message="Failed to load solution scenarios"
+          onRetry={() => {
+            setError(false);
+            setLoading(true);
+            loadScenarios();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">

@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from "react";
-import {
-  Brain,
-  Target,
-  BarChart3,
-  Activity,
-  Loader2,
-  AlertTriangle,
-} from "lucide-react";
+import { Brain, Target, BarChart3, Activity } from "lucide-react";
 import ReactECharts from "echarts-for-react";
 import Header from "../components/Header";
 import { api } from "../lib/api";
 import { toast } from "react-hot-toast";
+import LoadingState from "../components/LoadingState";
+import ErrorState from "../components/ErrorState";
 
 export default function Settings() {
   const [modelData, setModelData] = useState(null);
@@ -36,24 +31,27 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading model information...</p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Model Information"
+          description="AQI prediction model performance metrics and configuration"
+        />
+        <LoadingState message="Loading model information..." />
       </div>
     );
   }
 
   if (!modelData) {
     return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            Failed to load model information
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Header
+          title="Model Information"
+          description="AQI prediction model performance metrics and configuration"
+        />
+        <ErrorState
+          message="Failed to load model information"
+          onRetry={() => loadModelInfo()}
+        />
       </div>
     );
   }
