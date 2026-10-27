@@ -4,57 +4,47 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib
+
+pd.set_option("display.show_dimensions", True)  # always print rows x columns under a table
 
 
 # Load dataset
 df = pd.read_csv("aqi_data.csv")
 
-# Display initial data preview
 print("First 5 rows of dataset:")
 print(df.head())
 
-# Check missing values before cleaning
+pollutants = ["PM2.5", "NO", "NO2", "NOx", "CO", "SO2", "O3"]
+
 print("\nMissing values before cleaning:")
 print(df.isnull().sum())
 
-
-# Remove rows with missing AQI values
-df = df.dropna(subset=["AQI"])
-
-# Fill missing pollutant values using median
-pollutants = ["PM2.5", "NO", "NO2", "NOx", "CO", "SO2", "O3"]
+# Data cleaning
+rows_before = len(df)
+# remove rows with empty AQI
+df = df.dropna(subset=["AQI"])  
+# AQI threshold: scale ends at 500, larger is noise
+df = df[df["AQI"] <= 500]     
+# Safety limits: remove negative readings and too much higher values 
+limits = {"PM2.5": 1000, "NO": 1000, "NO2": 1000, "NOx": 1000, "CO": 50, "SO2": 1600, "O3": 748}
+for col, upper in limits.items():
+    df = df[df[col].isna() | df[col].between(0, upper)]
+# remove rows missing 3+ pollutants
+df = df[df[pollutants].isnull().sum(axis=1) < 3].copy()  
+# Pollutants are right-skewed (a few very high readings),
+# so the median is a safer fill for the remaining gaps than the mean
 for col in pollutants:
-    if col in df.columns:
-        df[col] = df[col].fillna(df[col].median())
+    df[col] = df[col].fillna(df[col].median())
+
+print(f"\nRows kept after cleaning: {len(df)} of {rows_before}")
 
 
-# Remove outliers using IQR method
-cols_for_outliers = pollutants + ["AQI"]
-for col in cols_for_outliers:
-    if col in df.columns:
-        Q1 = df[col].quantile(0.25)
-        Q3 = df[col].quantile(0.75)
-        IQR = Q3 - Q1
-
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-
-        df = df[(df[col] >= lower_bound) & (df[col] <= upper_bound)]
-
-
-# Convert Date column to datetime and sort data
-df["Date"] = pd.to_datetime(df["Date"])
-df = df.sort_values("Date")
-
-
-# Extract time-based features
-df["month"] = df["Date"].dt.month
-df["is_weekend"] = df["Date"].dt.dayofweek.apply(lambda x: 1 if x >= 5 else 0)
-
-
-# Define function to map month to season
+# Map month to season
 def get_season(month):
     if month in [12, 1, 2]:
         return "Winter"
@@ -66,31 +56,60 @@ def get_season(month):
         return "PostMonsoon"
 
 
-# Create season feature and apply one-hot encoding
-df["season"] = df["month"].apply(get_season)
-df = pd.get_dummies(df, columns=["season"])
+seasons = ["Winter", "Summer", "PostMonsoon"]  # Monsoon is the baseline (all 0)
 
 
-# Ensure all season columns exist
-for s in ["season_Winter", "season_Summer", "season_Monsoon", "season_PostMonsoon"]:
-    if s not in df.columns:
-        df[s] = 0
+# Create time-based features
+def add_time_features(data):
+    data["Date"] = pd.to_datetime(data["Date"])
+    data["month"] = data["Date"].dt.month
+    data["is_weekend"] = (data["Date"].dt.dayofweek >= 5).astype(int)
+    season = data["month"].apply(get_season)
+    for s in seasons:
+        data[f"season_{s}"] = (season == s).astype(int)
+    return data
 
+
+df = add_time_features(df)
 
 # Save cleaned and engineered dataset
 df.to_csv("refined_aqi_data.csv", index=False)
-print("\nRefined dataset saved as 'refined_aqi_data.csv'")
+print("Refined dataset saved as 'refined_aqi_data.csv'")
 
 
 # Define feature set for modeling
-features = ["PM2.5", "NO", "NO2", "NOx", "CO", "SO2", "O3"]
-features = [f for f in features if f in df.columns]
-
-season_cols = [col for col in df.columns if col.startswith("season_")]
-features += ["month", "is_weekend"] + season_cols
+features = pollutants + ["month", "is_weekend"] + [f"season_{s}" for s in seasons]
 
 X = df[features]
 y = df["AQI"]
+
+print("\nFirst 5 rows after cleaning (features used by the model, with AQI):")
+print(df[features + ["AQI"]].head())
+
+
+# Dataset analysis: correlation between features and AQI
+corr = df[features + ["AQI"]].corr()
+plt.figure(figsize=(9, 7))
+plt.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+plt.colorbar()
+plt.xticks(range(len(corr)), corr.columns, rotation=90)
+plt.yticks(range(len(corr)), corr.columns)
+for i in range(len(corr)):
+    for j in range(len(corr)):
+        plt.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center", fontsize=7)
+plt.title("Correlation Between Features and AQI")
+plt.tight_layout()
+plt.show()
+
+
+# Dataset analysis: mean AQI by month
+plt.figure(figsize=(8, 5))
+df.groupby("month")["AQI"].mean().plot(kind="bar")
+plt.xticks(rotation=0)
+plt.xlabel("Month")
+plt.ylabel("Mean AQI")
+plt.title("Mean AQI by Month")
+plt.show()
 
 
 # Split dataset into training and testing sets
@@ -99,85 +118,78 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# Train Random Forest regression model
-model = RandomForestRegressor(n_estimators=500, random_state=42)
-model.fit(X_train, y_train)
+# Define the three regression models (scaling is only needed for the regression ones)
+rf_model = RandomForestRegressor(n_estimators=500, random_state=42, n_jobs=-1)
+mlr_model = make_pipeline(StandardScaler(), LinearRegression())
+poly_model = make_pipeline(
+    StandardScaler(), PolynomialFeatures(degree=2), LinearRegression()
+)
+
+models = {
+    "Random Forest": rf_model,
+    "Multiple Linear": mlr_model,
+    "Polynomial": poly_model,
+}
 
 
-# Generate predictions on test data
-y_pred = model.predict(X_test)
+# Train each model and evaluate it on the test data
+predictions, rows = {}, {}
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, pred)
+
+    predictions[name] = pred
+    rows[name] = {
+        "MAE": mean_absolute_error(y_test, pred),
+        "MSE": mse,
+        "RMSE": np.sqrt(mse),
+        "R2": r2_score(y_test, pred),
+        "Train R2": r2_score(y_train, model.predict(X_train)),
+        "Correlation": np.corrcoef(y_test, pred)[0, 1],
+    }
+
+results = pd.DataFrame(rows).T
+best_model_name = results["R2"].idxmax()
+
+print("\nModel Comparison (test data):")
+print(results.round(3).to_string())
 
 
-# Evaluate model performance metrics
-mae = mean_absolute_error(y_test, y_pred)
-mse = mean_squared_error(y_test, y_pred)
-rmse = np.sqrt(mse)
-r2 = r2_score(y_test, y_pred)
-
-print("\nModel Performance:")
-print(f"Mean Absolute Error: {mae:.2f}")
-print(f"Mean Squared Error: {mse:.2f}")
-print(f"Root Mean Squared Error: {rmse:.2f}")
-print(f"R2 Score: {r2:.4f}")
-
-
-# Plot Actual vs Predicted AQI values
-plt.figure(figsize=(8, 6))
-plt.scatter(y_test, y_pred, alpha=0.6)
-
-min_val = min(min(y_test), min(y_pred))
-max_val = max(max(y_test), max(y_pred))
-plt.plot([min_val, max_val], [min_val, max_val], color="red", linewidth=2)
-
-plt.xlabel("Actual AQI")
-plt.ylabel("Predicted AQI")
-plt.title("Actual vs Predicted AQI with Prediction Line")
-plt.grid(True)
+# Plot Actual vs Predicted AQI for each model
+fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharex=True, sharey=True)
+for ax, (name, pred) in zip(axes, predictions.items()):
+    ax.scatter(y_test, pred, alpha=0.4, s=8)
+    ax.plot([0, 500], [0, 500], color="red", linewidth=2)
+    ax.set_title(f"{name} (R2 = {results.loc[name, 'R2']:.3f})")
+    ax.set_xlabel("Actual AQI")
+    ax.grid(True)
+axes[0].set_ylabel("Predicted AQI")
+plt.tight_layout()
 plt.show()
 
 
-# Plot feature importance from trained model
-importances = model.feature_importances_
+# Plot feature importance from the Random Forest
+importances = rf_model.feature_importances_
 plt.figure(figsize=(14, 7))
 plt.barh(features, importances)
-plt.xlabel("Importance")
-plt.title("Feature Importance in AQI Prediction")
+plt.xlabel("Importance (Monsoon is the baseline season, so it has no bar)")
+plt.title("Feature Importance in AQI Prediction (Random Forest)")
 plt.show()
 
 
 # Prepare a sample input for prediction
-sample_data = pd.DataFrame([{
+sample = {
+    "Date": "2024-01-15",
     "PM2.5": 111.89,
     "NO": 22.25,
     "NO2": 43.29,
     "NOx": 64.53,
-    "CO": 22.25,
+    "CO": 1.5,
     "SO2": 66.44,
     "O3": 5,
-    "Date": "2024-01-15"
-}])
-
-
-# Generate temporal and seasonal features for sample
-sample_data["Date"] = pd.to_datetime(sample_data["Date"])
-sample_data["month"] = sample_data["Date"].dt.month
-sample_data["is_weekend"] = sample_data["Date"].dt.dayofweek.apply(lambda x: 1 if x >= 5 else 0)
-sample_data["season"] = sample_data["month"].apply(get_season)
-
-sample_data = pd.get_dummies(sample_data, columns=["season"])
-
-
-# Align sample features with training features
-for col in season_cols:
-    if col not in sample_data.columns:
-        sample_data[col] = 0
-
-sample_data = sample_data[features]
-
-
-# Predict AQI for sample data
-prediction = model.predict(sample_data)
-print(f"\nPredicted AQI for given pollution levels: {prediction[0]:.2f}")
+}
+sample_data = add_time_features(pd.DataFrame([sample]))[features]
 
 
 # Define AQI category classification function
@@ -208,12 +220,25 @@ def early_warning(aqi):
         return "✅ Air quality is within safe limits."
 
 
-# Display AQI category and warning message
-print(f"AQI Category: {aqi_category(prediction[0])}")
-print(f"Early Warning: {early_warning(prediction[0])}")
+# Predict AQI for the sample with every model (AQI is limited to 0-500)
+print("\nSample input:")
+print("  " + ", ".join(f"{key} = {value}" for key, value in sample.items()))
+
+print("\nPredicted AQI for the sample:")
+print(f"{'Model':<18}{'AQI':>8}   Category")
+for name, model in models.items():
+    aqi = float(np.clip(model.predict(sample_data)[0], 0, 500))
+    print(f"{name:<18}{aqi:>8.2f}   {aqi_category(aqi)}")
+
+best_aqi = float(np.clip(models[best_model_name].predict(sample_data)[0], 0, 500))
+print(f"\nBest model    : {best_model_name} ({best_aqi:.2f})")
+print(f"AQI Category  : {aqi_category(best_aqi)}")
+print(f"Early Warning : {early_warning(best_aqi)}")
 
 
-# Save trained model and feature list
-joblib.dump(model, "model.pkl")
+# Save trained models and feature list
+joblib.dump(rf_model, "rf_model.pkl")
+joblib.dump(mlr_model, "mlr_model.pkl")
+joblib.dump(poly_model, "poly_model.pkl")
 joblib.dump(features, "features.pkl")
-print("\nModel and features saved successfully.")
+print("\nModels and features saved successfully.")
