@@ -1,89 +1,58 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
-import { CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster, ToastBar, toast } from "react-hot-toast";
+import { CheckCircle, AlertCircle, X } from "lucide-react";
 import Layout from "./components/Layout";
-import Home from "./pages/Home";
-import Predict from "./pages/Predict";
-import CityMap from "./pages/CityMap";
-import Monitor from "./pages/Monitor";
-import Analytics from "./pages/Analytics";
-import Problems from "./pages/Problems";
-import Solutions from "./pages/Solutions";
-import History from "./pages/History";
-import Settings from "./pages/Settings";
-import Dataset from "./pages/Dataset";
+import Prediction from "./pages/Prediction";
+import ModelInfo from "./pages/ModelInfo";
 
-function App() {
+const toastOptions = {
+  duration: 4000,
+  style: {
+    background: "hsl(var(--card))",
+    color: "hsl(var(--foreground))",
+    border: "1px solid hsl(var(--border))",
+    borderRadius: "6px",
+    padding: "12px 16px",
+    fontSize: "14px",
+  },
+  success: { icon: <CheckCircle className="w-5 h-5 text-success" /> },
+  error: { icon: <AlertCircle className="w-5 h-5 text-danger" /> },
+};
+
+export default function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <div className="min-h-screen bg-background">
         <Layout>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/predict" element={<Predict />} />
-            <Route path="/map" element={<CityMap />} />
-            <Route path="/monitor-cities" element={<Monitor />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/problems" element={<Problems />} />
-            {/* <Route path="/solutions" element={<Solutions />} /> */}
-            <Route path="/dataset" element={<Dataset />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/model" element={<Settings />} />
+            <Route path="/" element={<Prediction />} />
+            <Route path="/model-info" element={<ModelInfo />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
-        <Toaster
-          position="top-right"
-          gutter={8}
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: "hsla(168, 76%, 42%, 0.2)",
-              color: "hsl(168, 76%, 42%)",
-              border: "1px solid hsla(168, 76%, 42%, 0.35)",
-              borderRadius: "8px",
-              padding: "12px 16px",
-              fontSize: "14px",
-              fontWeight: "400",
-              backdropFilter: "blur(6px)",
-            },
-            success: {
-              style: {
-                background: "hsla(168, 76%, 42%, 0.2)",
-                color: "hsl(168, 76%, 42%)",
-                border: "1px solid hsla(168, 76%, 42%, 0.35)",
-              },
-              icon: <CheckCircle className="w-5 h-5" />,
-            },
-            error: {
-              style: {
-                background: "hsla(0, 72%, 51%, 0.2)",
-                color: "hsl(0, 72%, 51%)",
-                border: "1px solid hsla(0, 72%, 51%, 0.35)",
-              },
-              icon: <AlertCircle className="w-5 h-5" />,
-            },
-            loading: {
-              style: {
-                background: "hsla(217, 91%, 60%, 0.2)",
-                color: "hsl(217, 91%, 60%)",
-                border: "1px solid hsla(217, 91%, 60%, 0.35)",
-              },
-              icon: <Info className="w-5 h-5" />,
-            },
-            custom: {
-              style: {
-                background: "hsla(45, 93%, 47%, 0.2)",
-                color: "hsl(45, 93%, 47%)",
-                border: "1px solid hsla(45, 93%, 47%, 0.35)",
-              },
-              icon: <AlertTriangle className="w-5 h-5" />,
-            },
-          }}
-        />
+
+        {/* Messages appear at the bottom right and can be closed */}
+        <Toaster position="bottom-right" gutter={8} toastOptions={toastOptions}>
+          {(t) => (
+            <ToastBar toast={t}>
+              {({ icon, message }) => (
+                <>
+                  {icon}
+                  {message}
+                  {t.type !== "loading" && (
+                    <button
+                      onClick={() => toast.dismiss(t.id)}
+                      aria-label="Dismiss"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
+              )}
+            </ToastBar>
+          )}
+        </Toaster>
       </div>
-    </Router>
+    </BrowserRouter>
   );
 }
-
-export default App;
