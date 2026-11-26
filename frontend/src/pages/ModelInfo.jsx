@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { Database, Eraser, Layers, Brain, Target, Zap, ArrowRight, ChartScatter } from "lucide-react";
+import {
+  Database,
+  Eraser,
+  Layers,
+  Brain,
+  Target,
+  Zap,
+  ArrowRight,
+  ChartScatter,
+} from "lucide-react";
 import { api } from "../lib/api";
 import Header from "../components/Header";
 import LoadingState from "../components/LoadingState";
@@ -15,26 +24,68 @@ const format = (number) => number.toLocaleString("en-US");
 
 // Wording of each cleaning rule; the amounts are counted by the server
 const cleaningRules = [
-  { key: "empty_aqi", label: "Missing AQI", unit: "removed", detail: "Rows with no AQI value, the target" },
-  { key: "aqi_above_500", label: "AQI above 500", unit: "removed", detail: "Outside the AQI scale" },
-  { key: "impossible_readings", label: "Impossible readings", unit: "removed", detail: "Negative or unrealistically high pollutant values" },
-  { key: "mostly_empty_rows", label: "3+ pollutants missing", unit: "removed", detail: "Missing 3 or more of the 7 pollutants" },
-  { key: "filled_values", label: "Median-filled gaps", unit: "filled", detail: "Filled with the median, as readings are skewed" },
+  {
+    key: "empty_aqi",
+    label: "Missing AQI",
+    unit: "removed",
+    detail: "Rows with no AQI value, the target",
+  },
+  {
+    key: "aqi_above_500",
+    label: "AQI above 500",
+    unit: "removed",
+    detail: "Outside the AQI scale",
+  },
+  {
+    key: "impossible_readings",
+    label: "Impossible readings",
+    unit: "removed",
+    detail: "Negative or unrealistically high pollutant values",
+  },
+  {
+    key: "mostly_empty_rows",
+    label: "3+ pollutants missing",
+    unit: "removed",
+    detail: "Missing 3 or more of the 7 pollutants",
+  },
+  {
+    key: "filled_values",
+    label: "Median-filled gaps",
+    unit: "filled",
+    detail: "Filled with the median, as readings are skewed",
+  },
 ];
 
 const transformations = [
   { name: "Month", text: "1 to 12, from the date" },
   { name: "Weekend flag", text: "1 for Saturday and Sunday, else 0" },
-  { name: "Season", tag: "one-hot", text: "Winter, Summer, Post-monsoon (0/1)" },
+  {
+    name: "Season",
+    tag: "one-hot",
+    text: "Winter, Summer, Post-monsoon (0/1)",
+  },
 ];
 
 const modelCards = [
-  { name: "Random Forest", tag: "Decision trees", text: "Averages 500 trees; no scaling needed." },
-  { name: "Multiple Linear Regression", tag: "Linear", text: "Straight-line equation on scaled inputs." },
-  { name: "Polynomial Regression", tag: "Curved terms", text: "Polynomial terms on scaled inputs." },
+  {
+    name: "Random Forest",
+    tag: "Decision trees",
+    text: "Averages 500 trees; no scaling needed.",
+  },
+  {
+    name: "Multiple Linear Regression",
+    tag: "Linear",
+    text: "Straight-line equation on scaled inputs.",
+  },
+  {
+    name: "Polynomial Regression",
+    tag: "Curved terms",
+    text: "Polynomial terms on scaled inputs.",
+  },
 ];
 
-const scaledNote = "Scaled inputs have a mean of 0 and a standard deviation of 1";
+const scaledNote =
+  "Scaled inputs have a mean of 0 and a standard deviation of 1";
 
 // How the models turn the inputs into an AQI, in order
 const predictionFlow = [
@@ -48,26 +99,22 @@ const predictionFlow = [
 // Green marks the best value of a column, red the weakest
 const metrics = [
   { key: "r2", label: "R² test", better: "high", digits: 3 },
-  { key: "train_r2", label: "R² train", digits: 3 },
   { key: "mae", label: "MAE", better: "low", digits: 1 },
   { key: "rmse", label: "RMSE", better: "low", digits: 1 },
 ];
 
 function cellTone(metric, row, rows) {
-  // a train R² far above the test R² means overfitting
-  if (!metric.better) return row.train_r2 - row.r2 > 0.05 ? "text-warning font-semibold" : "text-foreground";
-
   const values = rows.map((item) => item[metric.key]);
   const highest = Math.max(...values);
   const lowest = Math.min(...values);
   const best = metric.better === "high" ? highest : lowest;
   const worst = metric.better === "high" ? lowest : highest;
   if (row[metric.key] === best) return "text-success font-bold";
-  if (row[metric.key] === worst) return "text-danger";
   return "text-foreground";
 }
 
-const headCell = "px-1 md:px-4 py-2 text-xs md:text-sm font-semibold text-foreground whitespace-nowrap";
+const headCell =
+  "px-1 md:px-4 py-2 text-xs md:text-sm font-semibold text-foreground whitespace-nowrap";
 
 function ScoreTable({ models, best }) {
   return (
@@ -129,7 +176,10 @@ function Steps({ data }) {
         tag="Source: Kaggle"
         subtitle="Daily air readings with a known AQI">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Stat value={format(data.raw_rows)} label="records, before cleaning" />
+          <Stat
+            value={format(data.raw_rows)}
+            label="records, before cleaning"
+          />
           <Stat value={data.raw_columns.length} label="columns" />
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -147,8 +197,10 @@ function Steps({ data }) {
         subtitle={
           <>
             {format(cleaning.rows_before)} rows became{" "}
-            <span className="text-success font-semibold">{format(cleaning.rows_after)}</span> (
-            {format(cleaning.rows_before - cleaning.rows_after)} removed)
+            <span className="text-success font-semibold">
+              {format(cleaning.rows_after)}
+            </span>{" "}
+            ({format(cleaning.rows_before - cleaning.rows_after)} removed)
           </>
         }>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -215,7 +267,9 @@ function Steps({ data }) {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
           {predictionFlow.map((item, index) => (
             <span key={item} className="flex items-center gap-2">
-              <span className="px-4 py-3 rounded-md bg-secondary/50 text-foreground">{item}</span>
+              <span className="px-4 py-3 rounded-md bg-secondary/50 text-foreground">
+                {item}
+              </span>
               {index < predictionFlow.length - 1 && (
                 <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground" />
               )}
@@ -261,7 +315,9 @@ export default function ModelInfo() {
   if (data) {
     content = <Steps data={data} />;
   } else if (failed) {
-    content = <ErrorState message="Failed to load the model results" onRetry={retry} />;
+    content = (
+      <ErrorState message="Failed to load the model results" onRetry={retry} />
+    );
   }
 
   return (
@@ -270,8 +326,10 @@ export default function ModelInfo() {
         title="Model Overview"
         description={
           <>
-            <span className="text-primary font-medium">Supervised regression</span>: three models
-            learn from labelled readings to predict air quality.
+            <span className="text-primary font-medium">
+              Supervised regression
+            </span>
+            : three models learn from labelled readings to predict air quality.
           </>
         }
       />

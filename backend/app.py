@@ -64,7 +64,7 @@ def score_models():
             {
                 "name": name,
                 "r2": r2_score(y_test, predicted),
-                "train_r2": r2_score(y_train, model.predict(X_train)),
+                # "train_r2": r2_score(y_train, model.predict(X_train)),
                 "mae": mean_absolute_error(y_test, predicted),
                 "rmse": root_mean_squared_error(y_test, predicted),
                 "points": points.round(1).tolist(),
