@@ -98,7 +98,6 @@ def train_and_score(X_train, X_test, y_train, y_test):
                 "MSE": mean_squared_error(y_test, predicted),
                 "RMSE": root_mean_squared_error(y_test, predicted),
                 "R2": r2_score(y_test, predicted),
-                "Train R2": r2_score(y_train, model.predict(X_train)),
             }
         )
     results = pd.DataFrame(rows, index=list(models))
